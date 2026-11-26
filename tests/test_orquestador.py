@@ -369,3 +369,15 @@ def test_prueba_propia_solo_del_planificador_y_con_frenos(tmp_path):
     assert e["escribe a.txt uno"] == e["escribe b.txt dos"] == e["escribe d.txt cuatro"] == "HECHA", e
     assert e["escribe c.txt tres"] != "HECHA"
     assert not list(tmp_path.rglob("inyectado"))
+
+
+def test_no_integra_ni_entrega_si_main_se_movio(tmp_path):
+    r = repo(tmp_path, [{"titulo": "mueve-main"}])
+    main_antes = sh(r, "git", "rev-parse", "main").strip()
+    orq = Orquestador(r, config.cargar(r), log=lambda *_: None)
+    asyncio.run(orq.correr())
+    t = orq.est.todas()[0]
+    assert t["estado"] == "FALLÓ" and "main cambió" in t["nota"], t
+    assert "intruso.txt" not in sh(r, "git", "ls-tree", "-r", "--name-only", orq.rama)
+    assert sh(r, "git", "rev-parse", "main").strip() != main_antes       # el agente sí lo movió…
+    assert orq.entregar_pr().startswith("no subo nada")                  # …y loopeable no entrega

@@ -123,7 +123,29 @@ def traer_base(wt: Path, base: str) -> list[str]:
     return git(wt, "diff", "--name-only", "--diff-filter=U").splitlines() or ["(merge falló)"]
 
 
-def integrar(raiz: Path, rama_tarea: str, mensaje: str):
-    """La rama de la tarea ya contiene a la de integración, así que esto no puede chocar."""
+PROTEGIDAS = ("main", "master")
+
+
+def shas(raiz: Path, ramas=PROTEGIDAS) -> dict[str, str]:
+    """SHA de cada rama protegida ("" si no existe)."""
+    return {r: git(raiz, "rev-parse", "--verify", "-q", f"refs/heads/{r}", check=False) for r in ramas}
+
+
+def exigir_intactas(raiz: Path, antes: dict[str, str]):
+    """Falla si alguna rama protegida se movió desde que arrancó la corrida (nadie de loopeable la toca)."""
+    for rama, ahora in shas(raiz, antes).items():
+        if ahora != antes[rama]:
+            raise ErrorGit(f"{rama} cambió durante la corrida ({antes[rama][:8] or 'no existía'} → "
+                           f"{ahora[:8] or 'borrada'}): no integro ni entrego nada; revisa quién la movió")
+
+
+def integrar(raiz: Path, rama_tarea: str, mensaje: str, protegidas: dict[str, str] | None = None,
+             rama: str = ""):
+    """La rama de la tarea ya contiene a la de integración, así que esto no puede chocar. Antes comprueba que main
+    no se movió y que la raíz sigue en la rama de integración."""
+    if protegidas is not None:
+        exigir_intactas(raiz, protegidas)
+    if rama and (actual := git(raiz, "branch", "--show-current")) != rama:
+        raise ErrorGit(f"la raíz está en {actual or 'HEAD suelto'} y no en {rama}: no integro")
     git(raiz, "-c", "user.name=loopeable", "-c", "user.email=loopeable@localhost",
         "merge", "--no-ff", "-q", "-m", mensaje, rama_tarea)

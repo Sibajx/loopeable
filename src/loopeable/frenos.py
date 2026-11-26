@@ -11,11 +11,12 @@ import shlex
 from pathlib import Path
 
 # Lo que nunca se hace solo: queda para una puerta humana.
+# git, completo: con opciones globales (`git -C . push`), plomería (`update-ref`) o `branch -f` se mueve main o se
+# hace push; una lista de subcomandos siempre deja huecos. Los agentes ven el cambio con el diff que les da loopeable.
+GIT = "git: lo maneja loopeable (ramas, commits, merges y push), nunca un agente"
+
 COMANDOS_PROHIBIDOS = [
-    (r"\bgit\s+push\b", "push: la entrega la hace loopeable al final, a una rama, nunca un agente"),
-    (r"\bgit\s+(reset\s+--hard|clean\s+-[a-z]*f|checkout\s+--\s|rebase|filter-branch|worktree)\b",
-     "operaciones de git que reescriben o borran: las maneja loopeable"),
-    (r"\bgit\s+(-c\s+\S+\s+)*commit\b", "los commits los hace loopeable cuando la tarea pasa verificación y revisión"),
+    (r"(?<![\w.-])git(?![\w.-])", GIT),
     (r"\bsudo\b|\bsu\s+-", "sin privilegios de administrador"),
     (r"\brm\s+-[a-z]*r[a-z]*f?\s+(/|~|\$HOME|\.\.)(\s|$|/)", "borrado recursivo fuera del proyecto"),
     (r"(curl|wget)[^|]*\|\s*(ba)?sh", "ejecutar scripts descargados"),
@@ -109,6 +110,8 @@ def comando_bloqueado(cmd: str, raiz: Path, prohibidas: list[str]) -> str | None
         palabras = shlex.split(cmd, posix=True)
     except ValueError:
         palabras = cmd.split()
+    if any(Path(w).name == "git" for w in palabras):     # "git", g''it, /usr/bin/git
+        return GIT
     for w in palabras:                       # tocar archivos prohibidos desde Bash (cat .env, > .env, cp key …)
         if "/" in w or "." in w or w.startswith("~"):
             w = w.lstrip("<>&0123456789") if re.match(r"\d*[<>]", w) else w

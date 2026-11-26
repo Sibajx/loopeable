@@ -43,6 +43,7 @@ class Orquestador:
         self.perfil_ctx, self.perfil_rev = roles.perfil(cfg["perfil"], raiz)
         self.rama = self.est.meta("rama") or cfg["entrega"]["rama"].format(fecha=time.strftime("%Y-%m-%d_%H%M"))
         self.n_sesion = 0
+        self.protegidas: dict[str, str] = {}
         self.env = config_entorno(cfg)
         for aviso in avisos_plan(cfg):
             self.log(f"⚠️  {aviso}")
@@ -140,6 +141,7 @@ class Orquestador:
         git_ops.excluir_carpeta_estado(self.raiz)
         if git_ops.sucio(self.raiz):
             raise SystemExit("Hay cambios sin commit. Haz commit (incluido loopeable.toml) antes de correr loopeable.")
+        self.protegidas = git_ops.shas(self.raiz)       # main/master tal como estaban: se comprueban al integrar
         git_ops.preparar_rama(self.raiz, self.rama)
         self.est.poner_meta("rama", self.rama)
         try:
@@ -417,7 +419,7 @@ class Orquestador:
                     git_ops.git(wt, "merge", "--abort", check=False)
                     return False
                 git_ops.commit(wt, f"loopeable {t['id']}: integra la rama de integración")
-            git_ops.integrar(self.raiz, rama_t, f"loopeable {t['id']}: {t['titulo']}")
+            git_ops.integrar(self.raiz, rama_t, f"loopeable {t['id']}: {t['titulo']}", self.protegidas, self.rama)
             return True
 
     # ───────────────────── el loop que orquesta ─────────────────────
@@ -498,6 +500,10 @@ class Orquestador:
 
     def entregar_pr(self) -> str:
         """Push de la rama de integración (nunca main) y PR en borrador. Es lo único que sale de tu máquina."""
+        try:
+            git_ops.exigir_intactas(self.raiz, self.protegidas)
+        except git_ops.ErrorGit as e:
+            return f"no subo nada: {e}"
         if not shutil.which("gh"):
             return "no hay `gh`: sube la rama a mano"
         try:
