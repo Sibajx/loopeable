@@ -112,13 +112,12 @@ ESQUEMA_SEGURIDAD = {
 
 
 def cuerpo_tarea(t: dict) -> str:
-    """Texto de la tarea en markdown, a partir de lo que devolvió el planificador."""
+    """Texto de la tarea en markdown, a partir de lo que devolvió el planificador. La `prueba` no va aquí: se
+    guarda aparte (Estado.nueva) para que nada escrito en el texto libre llegue a ejecutarse."""
     L = [t.get("descripcion", "").strip(), ""]
     if t.get("archivos"):
         L += ["Archivos probables: " + ", ".join(f"`{a}`" for a in t["archivos"]), ""]
     L += ["Criterios de aceptación:"] + [f"- {c}" for c in t.get("criterios", [])]
-    if t.get("prueba"):
-        L += ["", f"Prueba propia (debe salir 0): `{t['prueba']}`"]
     if t.get("decision"):
         L += ["", f"Decisión pendiente del dueño: {t['decision']}"]
     return "\n".join(L).strip()

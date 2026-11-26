@@ -191,9 +191,15 @@ class Orquestador:
                 if len(self.est.todas()) >= self.L["tareas"]:
                     self.log(f"   tope de {self.L['tareas']} tareas: el resto del plan se descarta")
                     break
+                prueba = (t.get("prueba") or "").strip()
+                bloqueo = frenos.comando_bloqueado(prueba, self.raiz, self.cfg["rutas"]["prohibidas"]) if prueba else None
+                if bloqueo:
+                    self.log(f"   ⚠️  la prueba propia de «{t['titulo']}» se descarta: {bloqueo}")
+                    self.est.evento("plan", "prueba-bloqueada", f"{t['titulo']}: {bloqueo}")
+                    prueba = ""
                 por_titulo[t["titulo"]] = self.est.nueva(
                     t["titulo"], roles.cuerpo_tarea(t), int(t.get("prioridad", 2)), origen=p.name,
-                    estado="DECISIÓN" if t.get("decision") else estado_inicial)
+                    estado="DECISIÓN" if t.get("decision") else estado_inicial, prueba=prueba)
                 if t.get("decision"):
                     self.est.cambiar(por_titulo[t["titulo"]], nota=t["decision"])
             for t in r.datos.get("tareas", []):
@@ -222,7 +228,11 @@ class Orquestador:
         async with self.lock:
             git_ops.crear_worktree(self.raiz, self.rama, wt, rama_t)
         base = git_ops.git(wt, "rev-parse", "HEAD")
-        prueba_propia = re.findall(r"Prueba propia \(debe salir 0\): `(.+)`", t["cuerpo"])
+        # La prueba propia viene de su columna (la llena solo el planificador) y pasa otra vez por los frenos:
+        # se ejecuta con bash -c, fuera del hook.
+        prueba = t.get("prueba") or ""
+        prueba_propia = [prueba] if prueba and not frenos.comando_bloqueado(
+            prueba, self.raiz, self.cfg["rutas"]["prohibidas"]) else []
 
         def comandos_ahora() -> list[str]:
             # Sin [hecho] pruebas, se detectan en el worktree cada vez: en un repo nuevo tests/ aparece a media tarea.
@@ -424,7 +434,9 @@ class Orquestador:
             self.log(f"⏹️  {f}")
         propuestas = [t for t in self.est.todas() if t["estado"] == "PROPUESTA"]
         if propuestas:
-            texto = "\n".join(f"{t['id']} [{t['prioridad']}] {t['titulo']}" for t in propuestas)
+            texto = "\n".join(f"{t['id']} [{t['prioridad']}] {t['titulo']}" +
+                              (f"\n     prueba propia (se ejecutará): {t['prueba']}" if t["prueba"] else "")
+                              for t in propuestas)
             self.log(f"\n📝 Plan listo, esperando tu OK:\n{texto}\n\nApruébalo con: loopeable aprobar todas")
             avisos.avisar(self.cfg, "loopeable: plan listo para aprobar", texto)
             return self.resumen("esperando aprobación del plan")

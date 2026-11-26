@@ -85,7 +85,8 @@ def main(argv=None):
         return
     if a.cmd == "ver":
         t = est.tarea(a.id)
-        print(f"# {t['id']} · {t['titulo']}  [{t['estado']}]\n\n{t['cuerpo']}\n\nNota: {t['nota']}\n")
+        prueba = f"\n\nPrueba propia (se ejecuta con bash): `{t['prueba']}`" if t["prueba"] else ""
+        print(f"# {t['id']} · {t['titulo']}  [{t['estado']}]\n\n{t['cuerpo']}{prueba}\n\nNota: {t['nota']}\n")
         for e in reversed(est.eventos(a.id, 30)):
             texto = e["texto"] if e["tipo"] == "rechazo" else e["texto"][:160]   # el motivo completo
             primera, *resto = texto.splitlines() or [""]
@@ -97,6 +98,8 @@ def main(argv=None):
         ids = _ids(est, a.ids, {"PROPUESTA"})
         for i in ids:
             est.cambiar(i, estado="PENDIENTE")
+            if est.tarea(i)["prueba"]:
+                print(f"{i} correrá su prueba propia: {est.tarea(i)['prueba']}")
         print(f"Aprobadas: {', '.join(ids) or 'ninguna'}. Corre `loopeable correr`.")
         return
     if a.cmd == "responder":
