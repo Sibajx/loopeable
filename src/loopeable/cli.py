@@ -4,7 +4,8 @@
   loopeable planear               convierte las fuentes nuevas en tareas (no implementa nada)
   loopeable aprobar todas|T01,T02 aprueba tareas propuestas
   loopeable correr                planea lo nuevo y corre los loops hasta terminar o topar un límite
-  loopeable estado                tablero de tareas
+  loopeable estado                tablero de tareas (texto)
+  loopeable tablero               página local con el avance en vivo (http://127.0.0.1:8787)
   loopeable ver T03               detalle y eventos de una tarea
   loopeable responder T03 "..."   contesta una DECISIÓN; la tarea vuelve a la cola
   loopeable reintentar [T03,...]  vuelve a la cola las FALLÓ / ESTANCADA / NO_PUDE
@@ -48,6 +49,8 @@ def main(argv=None):
     p = sub.add_parser("reintentar"); p.add_argument("ids", nargs="?", default="todas")
     sub.add_parser("parar")
     sub.add_parser("pruebas")
+    p = sub.add_parser("tablero"); p.add_argument("--puerto", type=int, default=8787)
+    p.add_argument("--sin-abrir", action="store_true")
     a = ap.parse_args(argv)
     raiz = _raiz(a)
 
@@ -58,6 +61,11 @@ def main(argv=None):
         ruta.write_text(config.PLANTILLA)
         (raiz / ".loopeable" / "bandeja").mkdir(parents=True, exist_ok=True)
         print(f"Creado {ruta}. Edítalo, pon ideas en .loopeable/bandeja/*.md y corre `loopeable correr`.")
+        return
+
+    if a.cmd == "tablero":
+        from .tablero import servir
+        servir(raiz, a.puerto, not a.sin_abrir)
         return
 
     if a.cmd == "pruebas":

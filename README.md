@@ -67,7 +67,8 @@ git add loopeable.toml && git commit -m "loopeable"
 loopeable planear                 # tareas propuestas en .loopeable/TABLERO.md
 loopeable aprobar todas
 loopeable correr                  # horas: en segundo plano, tmux, Docker o server
-loopeable estado                  # tablero
+loopeable estado                  # tablero en texto
+loopeable tablero                 # página con el avance en vivo: http://127.0.0.1:8787
 loopeable ver T03                 # detalle y eventos
 loopeable responder T03 "Mercado Pago"   # contesta una ❓ decisión
 loopeable reintentar T05

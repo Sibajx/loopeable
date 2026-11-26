@@ -30,7 +30,8 @@ class Freno(Exception):
 
 class Orquestador:
     def __init__(self, raiz: Path, cfg: dict, log=print):
-        self.raiz, self.cfg, self.log = raiz, cfg, log
+        self.raiz, self.cfg, self.log = Path(raiz).resolve(), cfg, log
+        raiz = self.raiz
         self.dir = raiz / ".loopeable"
         self.est = Estado(self.dir)
         self.lock = asyncio.Lock()

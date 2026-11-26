@@ -120,3 +120,13 @@ def test_arbol_sucio_no_arranca(tmp_path):
     (r / "suelto.txt").write_text("x")
     with pytest.raises(SystemExit):
         correr(r)
+
+
+def test_tablero_json(tmp_path):
+    from loopeable.tablero import PAGINA, datos
+    r = repo(tmp_path, [{"titulo": "escribe a.txt uno"}])
+    correr(r)
+    d = datos(r)
+    assert d["tareas"][0]["estado"] == "HECHA" and "cuerpo" not in d["tareas"][0]
+    assert d["tope_usd"] == 5 and d["rama"].startswith("loopeable/")
+    assert "estado.json" in PAGINA
