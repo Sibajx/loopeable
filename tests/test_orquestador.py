@@ -231,3 +231,18 @@ def test_reanudar_reinicia_intentos_de_en_curso(tmp_path):
     orq = Orquestador(r, config.cargar(r), log=lambda *_: None)
     orq.preparar()
     assert orq.est.tarea(tid)["estado"] == "PENDIENTE" and orq.est.tarea(tid)["intentos"] == 0
+
+
+def test_rechazos_quedan_registrados_con_motivo(tmp_path, capsys):
+    from loopeable.tablero import datos
+    r = repo(tmp_path, [{"titulo": "rechaza-una-vez"}, {"titulo": "nada"}, {"titulo": "rompe"}])
+    res, est = correr(r)
+    ids = {t["titulo"]: t["id"] for t in est.todas()}
+    def rechazos(titulo):
+        return [e["texto"] for e in est.eventos(ids[titulo], 200) if e["tipo"] == "rechazo"]
+    assert any("revisor" in x and "agrega una prueba" in x for x in rechazos("rechaza-una-vez"))
+    assert any("sin cambios" in x for x in rechazos("nada"))
+    assert any("pruebas" in x and "roto.sh" in x for x in rechazos("rompe"))
+    main(["-C", str(r), "ver", ids["rechaza-una-vez"]])
+    assert "agrega una prueba" in capsys.readouterr().out
+    assert any(e["tipo"] == "rechazo" and "agrega una prueba" in e["texto"] for e in datos(r)["eventos"])

@@ -112,6 +112,11 @@ class Orquestador:
             raise Freno(f"la sesión de {rol} topó su parte del saldo ({usd_max:.2f} USD)")
         return r
 
+    def _rechazo(self, tid: str, motivo: str):
+        """Por qué se rechazó un intento: evento `rechazo` (ver / tablero) y nota de la tarea mientras siga en curso."""
+        self.est.evento(tid, "rechazo", motivo)
+        self.est.cambiar(tid, nota=motivo[:1000])
+
     def tablero(self):
         marca = {"HECHA": "✅", "PENDIENTE": "⏳", "EN_CURSO": "🔄", "PROPUESTA": "📝", "DECISIÓN": "❓",
                  "FALLÓ": "❌", "ESTANCADA": "🧱", "NO_PUDE": "⚠️"}
@@ -226,6 +231,7 @@ class Orquestador:
                                       roles.ESQUEMA_IMPLEMENTAR, roles.PARA_IMPLEMENTAR)
                 if r.error:
                     historia.append(f"intento {intento}: la sesión falló ({r.error[:200]})")
+                    self._rechazo(tid, f"implementador: la sesión falló: {r.error[:500]}")
                     retro = f"La sesión anterior se cortó con un error: {r.error[:500]}. Continúa desde lo que hay."
                     continue
                 d = r.datos if isinstance(r.datos, dict) else {}
@@ -237,6 +243,7 @@ class Orquestador:
                     return estado
                 if not git_ops.hay_cambios(wt):
                     historia.append(f"intento {intento}: dijo LISTO sin cambiar nada")
+                    self._rechazo(tid, "implementador: dijo LISTO sin cambios en el repo")
                     retro = "Dijiste LISTO pero no hay ningún cambio en el repo. Implementa la tarea."
                     continue
 
@@ -244,6 +251,7 @@ class Orquestador:
                 if not ok:
                     h = huella(log)
                     historia.append(f"intento {intento}: pruebas fallaron (firma {h})")
+                    self._rechazo(tid, "pruebas fallaron:\n" + "\n".join(log.strip().splitlines()[-15:]))
                     retro = f"Fallaron las pruebas:\n```\n{log[-4000:]}\n```"
                     if huellas.count(h) >= 2:
                         self.est.cambiar(tid, nota=f"mismo error 3 veces: {log[-300:]}")
@@ -260,6 +268,7 @@ class Orquestador:
                 motivo = await self._puerta_seguridad(t, wt, base)
                 if motivo:
                     historia.append(f"intento {intento}: la puerta de seguridad lo rechazó")
+                    self._rechazo(tid, f"seguridad: {motivo}")
                     retro = motivo
                     continue
 
@@ -272,6 +281,7 @@ class Orquestador:
                 if rv.error or not dv.get("aprobado"):
                     cambios = dv.get("cambios") or [rv.error or "el revisor no dio veredicto"]
                     historia.append(f"intento {intento}: el revisor pidió {len(cambios)} cambios")
+                    self._rechazo(tid, "revisor pidió:\n" + "\n".join(f"- {c}" for c in cambios))
                     retro = "El revisor pidió:\n" + "\n".join(f"- {c}" for c in cambios)
                     continue
 
@@ -280,6 +290,7 @@ class Orquestador:
                     self.est.cambiar(tid, nota="conflicto de merge que el integrador no pudo resolver")
                     return resultado
                 resultado = "HECHA"
+                self.est.cambiar(tid, nota="")
                 self.log(f"✅ {tid} integrada (intento {intento}, {self.est.tarea(tid)['costo']:.2f} USD)")
                 return resultado
             self.est.cambiar(tid, nota="; ".join(historia)[-1000:])

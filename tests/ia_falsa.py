@@ -79,8 +79,8 @@ def responder(rol, prompt, cwd, esquema, sesion=None):
         return {"datos": {"estado": "LISTO"}, "costo": 0.02}
 
     if rol == "revisor":
-        if titulo == "rechaza-una-vez" and titulo not in _rechazos:
-            _rechazos.add(titulo)
+        if titulo == "rechaza-una-vez" and (titulo, str(cwd)) not in _rechazos:   # una vez por proyecto
+            _rechazos.add((titulo, str(cwd)))
             return {"datos": {"aprobado": False, "cambios": ["agrega una prueba"]}, "costo": 0.01}
         return {"datos": {"aprobado": True}, "costo": 0.01}
 
