@@ -19,7 +19,7 @@ import time
 from pathlib import Path
 
 from . import avisos, frenos, git_ops, ia, roles
-from .config import entorno_cuenta as config_entorno
+from .config import avisos_plan, entorno_cuenta as config_entorno
 from .estado import Estado
 from .verificar import detectar_pruebas, huella, verificar
 
@@ -44,6 +44,8 @@ class Orquestador:
         self.rama = self.est.meta("rama") or cfg["entrega"]["rama"].format(fecha=time.strftime("%Y-%m-%d_%H%M"))
         self.n_sesion = 0
         self.env = config_entorno(cfg)
+        for aviso in avisos_plan(cfg):
+            self.log(f"⚠️  {aviso}")
         if cfg["cuenta"]["modo"] == "plan" and os.environ.get("ANTHROPIC_API_KEY"):
             self.log("⚠️  [cuenta] modo = \"plan\", pero ANTHROPIC_API_KEY está definida en tu terminal: el SDK la "
                      "usará y se cobrará a la API. Quítala (unset ANTHROPIC_API_KEY) si quieres usar tu plan.")

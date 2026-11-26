@@ -89,7 +89,7 @@ loopeable parar                   # alto limpio
 | `[rutas]` | `prohibidas` (ni leer ni escribir: secretos), `solo_lectura` (CI, .git), `permitidas` | secretos · CI · .git |
 | `[puertas]` | `aprobar_plan`, `seguridad` (ruta a security-suite), `bloquear_en` | sí · apagada · 🔴 |
 | `[entrega]` | `rama`, `pr` (push de la rama + PR en borrador con `gh`) | `loopeable/{fecha}` · no |
-| `[cuenta]` | `modo`: `plan` (tu suscripción; los "$" son equivalente de API) o `api` (la key de `api_env`, p. ej. los créditos de API de Max/Ultra) | `plan` |
+| `[cuenta]` | `modo`: `plan` (tu suscripción; los "$" son equivalente de API) o `api` (la key de `api_env`, p. ej. los créditos de API de Max/Ultra/Team); `plan`: free/pro/max/ultra/team/enterprise, para sugerir límites y avisar (Free no incluye Claude Code: solo `api`) | `plan` |
 | `[avisos]` | `ntfy`, `telegram_token_env`, `telegram_chat` | apagados |
 
 Perfiles incluidos: `generico`, `python`, `security-suite`, `firmware-esp32`. Uno propio es un `.md` con secciones

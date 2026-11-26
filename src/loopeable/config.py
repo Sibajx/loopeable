@@ -58,6 +58,8 @@ DEFECTO: dict = {
         # "api":  usa la API key guardada en `api_env` (p. ej. los créditos mensuales de API de Max/Ultra);
         #         los "$" son dinero real de esos créditos y tu plan queda libre para trabajar a mano.
         "modo": "plan",
+        # free | pro | max | ultra | team | enterprise — solo para sugerir límites y avisar; no cambia permisos
+        "plan": "",
         "api_env": "~/.config/loopeable/api.env",   # archivo (chmod 600) con ANTHROPIC_API_KEY=...
     },
     "avisos": {
@@ -85,6 +87,38 @@ def cargar(raiz: Path) -> dict:
     if cfg["cuenta"]["modo"] not in ("plan", "api"):
         raise ValueError(f"{ARCHIVO}: [cuenta] modo debe ser \"plan\" o \"api\".")
     return cfg
+
+
+PLANES = ("free", "pro", "max", "ultra", "team", "enterprise")
+
+# Sugerencias para correr con modo = "plan" (consume los límites de uso de la suscripción). Son puntos de partida
+# conservadores, no reglas de Anthropic: ajústalos según cuánto uso te quede esa semana.
+SUGERENCIAS = {
+    "pro":        {"paralelo": 1, "planificador": "claude-sonnet-5-5", "revisor": "claude-sonnet-5-5"},
+    "max":        {"paralelo": 2, "planificador": "claude-opus-5-5", "revisor": "claude-sonnet-5-5"},
+    "ultra":      {"paralelo": 4, "planificador": "claude-opus-5-5", "revisor": "claude-opus-5-5"},
+    "team":       {"paralelo": 2, "planificador": "claude-sonnet-5-5", "revisor": "claude-sonnet-5-5"},
+    "enterprise": {"paralelo": 2, "planificador": "claude-sonnet-5-5", "revisor": "claude-sonnet-5-5"},
+}
+
+
+def avisos_plan(cfg: dict) -> list[str]:
+    """Avisos (y errores) según el tipo de plan. Devuelve textos; lanza SystemExit si no puede funcionar."""
+    c, plan = cfg["cuenta"], (cfg["cuenta"].get("plan") or "").lower()
+    if plan and plan not in PLANES:
+        raise SystemExit(f"[cuenta] plan = \"{plan}\" no es válido: usa uno de {', '.join(PLANES)}.")
+    if c["modo"] == "plan" and plan == "free":
+        raise SystemExit("El plan Free no incluye Claude Code, así que no puede correr loops con tu plan. "
+                         "Usa [cuenta] modo = \"api\" con una API key de platform.claude.com.")
+    r = []
+    s = SUGERENCIAS.get(plan)
+    if c["modo"] == "plan" and s and cfg["limites"]["paralelo"] > s["paralelo"]:
+        r.append(f"Con plan {plan} y {cfg['limites']['paralelo']} loops en paralelo puedes agotar tu uso de la semana "
+                 f"rápido; sugerido: paralelo = {s['paralelo']}.")
+    if c["modo"] == "plan" and plan in ("team", "enterprise"):
+        r.append("En Team/Enterprise tu organización puede limitar o medir el uso del Agent SDK; si algo falla por "
+                 "permisos, pregúntale a quien administra la cuenta.")
+    return r
 
 
 def entorno_cuenta(cfg: dict) -> dict[str, str]:
@@ -136,6 +170,7 @@ pr = false
 
 [cuenta]
 modo = "plan"                  # plan = tu suscripción · api = la API key de api_env (créditos de API)
+plan = ""                      # free | pro | max | ultra | team | enterprise (para sugerencias y avisos)
 api_env = "~/.config/loopeable/api.env"
 
 [avisos]

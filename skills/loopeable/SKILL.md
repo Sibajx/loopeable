@@ -38,7 +38,18 @@ agrupada (con opciones y un valor recomendado en cada una):
 8. **Dónde corre**: aquí en segundo plano, en Docker (recomendado si el proyecto tiene secretos cerca: los agentes
    tienen Bash) o en un server 24/7 (ver `despliegue/SERVER.md` del repo de loopeable).
 9. **Avisos**: tema de ntfy y/o bot de Telegram para el celular.
-10. **Cuenta: ¿con qué se paga?** Explica en dos líneas y pregunta (recomendado: plan):
+10. **Cuenta: ¿qué plan tiene y con qué se paga?** Primero el plan (`[cuenta] plan`), porque cambia lo que conviene:
+
+    | Plan | ¿Puede usar su plan? | Créditos mensuales de API incluidos | Sugerencia con `modo = "plan"` |
+    |---|---|---|---|
+    | Free | No: Free no incluye Claude Code | No | Solo `modo = "api"` con key de platform.claude.com |
+    | Pro | Sí, con límites chicos | No | `paralelo = 1`, Sonnet para planificar y revisar, corridas cortas |
+    | Max | Sí (5× o 20× Pro) | Sí (Max 5x/20x) | `paralelo = 2`, Opus solo para planear |
+    | Ultra | Sí, el más holgado | Sí | `paralelo = 4`, Opus para planear y revisar |
+    | Team | Sí, según el asiento (estándar o premium) | Sí, compartidos en el equipo | `paralelo = 2`, Sonnet; confirmar con el admin |
+    | Enterprise | Sí, si su asiento incluye Claude Code | No | `paralelo = 2`; puede facturarse a precios de API: preguntar al admin |
+
+    Si no sabe su plan: claude.ai → Configuración → Facturación. Luego el modo de pago (recomendado: plan, salvo Free):
     - **Plan** (`modo = "plan"`, por defecto): usa la sesión de Claude Code de esta máquina. No hay cobros
       aparte, pero consume los mismos límites de uso que su Claude Code interactivo; una corrida larga o con mucho
       paralelo puede dejarlo sin uso esa semana. Los "$" del tablero son un equivalente a precios de API.

@@ -50,6 +50,9 @@ tope de presupuesto, reanudar. Bugs que salieron (el prompt completo para arregl
 - [ ] 7. Si .loopeable/ quedó versionado, mover la bandeja deja el árbol sucio y la siguiente corrida no arranca.
 - [ ] 8. Revisión proporcional: un .gitignore costó 1.25 USD en 3 intentos por revisar siempre con Opus + 3 subagentes.
 - [x] Entrevista pregunta con qué se paga: `[cuenta] modo = "plan" | "api"` (key en archivo aparte, chmod 600).
+- [x] Entrevista pregunta el tipo de plan (`[cuenta] plan`): Free se niega con modo plan; avisos y sugerencias por plan.
+- [ ] Revisar de vez en cuando la tabla de planes de SKILL.md (qué incluye cada plan cambia; fuente: claude.com/pricing
+      y support.claude.com, artículos de Claude Code por plan y de créditos mensuales de API).
 
 ## 2. Limitaciones conocidas de la v0.1
 

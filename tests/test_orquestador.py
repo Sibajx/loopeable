@@ -160,3 +160,17 @@ def test_cuenta_api_llega_a_las_sesiones(tmp_path):
     assert orq.env == {"ANTHROPIC_API_KEY": "sk-ant-x"}
     from loopeable.tablero import datos
     assert datos(r)["modo"] == "api"
+
+
+def test_tipo_de_plan():
+    from loopeable.config import DEFECTO, _mezclar, avisos_plan
+    def cfg(**cuenta):
+        return _mezclar(DEFECTO, {"objetivo": "x", "cuenta": cuenta, "limites": {"paralelo": 4}})
+    with pytest.raises(SystemExit):
+        avisos_plan(cfg(modo="plan", plan="free"))          # Free no trae Claude Code
+    assert avisos_plan(cfg(modo="api", plan="free")) == []   # con API key sí
+    assert any("paralelo = 1" in a for a in avisos_plan(cfg(modo="plan", plan="pro")))
+    assert avisos_plan(cfg(modo="plan", plan="ultra")) == []
+    assert any("admin" in a for a in avisos_plan(cfg(modo="plan", plan="team")))
+    with pytest.raises(SystemExit):
+        avisos_plan(cfg(modo="plan", plan="platino"))
