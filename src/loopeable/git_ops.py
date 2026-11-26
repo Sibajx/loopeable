@@ -26,9 +26,11 @@ def es_repo(raiz: Path) -> bool:
 
 
 # Lo que nunca debe entrar a un commit de loopeable aunque el proyecto no tenga .gitignore: el estado de
-# loopeable y la basura que dejan las pruebas y los builds.
+# loopeable, la basura que dejan las pruebas y los builds, y secretos (los commits salen con `git add -A`).
+# Llaves SSH por nombre y no `id_*`: eso dejaría fuera, sin aviso, archivos como id_utils.py.
 EXCLUIR = [".loopeable/", "__pycache__/", "*.pyc", ".pytest_cache/", ".mypy_cache/", ".ruff_cache/",
-           "node_modules/", ".venv/", "dist/", "build/", "*.egg-info/", ".pio/"]
+           "node_modules/", ".venv/", "dist/", "build/", "*.egg-info/", ".pio/",
+           ".env*", "*.pem", "*.key", "*.p12", "id_rsa*", "id_dsa*", "id_ecdsa*", "id_ed25519*"]
 
 
 def excluir_carpeta_estado(raiz: Path):

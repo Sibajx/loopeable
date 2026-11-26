@@ -4,3 +4,12 @@ __pycache__/
 .pytest_cache/
 dist/
 .loopeable/
+# secretos
+.env*
+*.pem
+*.key
+*.p12
+id_rsa*
+id_dsa*
+id_ecdsa*
+id_ed25519*

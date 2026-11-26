@@ -129,3 +129,22 @@ def responder(rol, prompt, cwd, esquema, sesion=None):     # noqa: F811
         _mover_main(cwd)
         return {"datos": {"estado": "LISTO"}, "costo": 0.02}
     return _responder_base(rol, prompt, cwd, esquema, sesion=sesion)
+
+
+_responder_s3 = responder
+
+
+def responder(rol, prompt, cwd, esquema, sesion=None):     # noqa: F811
+    """"con-secretos": escribe app.py y, junto, archivos con pinta de secreto que no deben llegar a un commit."""
+    m = re.search(r"Tu tarea: (T\d+) · (.+?) \(intento", prompt)
+    if rol == "implementador" and m and m.group(2).strip() == "con-secretos":
+        LLAMADAS.append((rol, "con-secretos"))
+        SESIONES.append(("con-secretos", sesion))
+        cwd = Path(cwd)
+        (cwd / "app.py").write_text("x = 1\n")
+        (cwd / "cfg").mkdir(exist_ok=True)
+        for nombre in (".env", ".env.local", "cfg/.env.production", "server.pem", "cfg/tls.key", "id_ed25519",
+                       "id_rsa.pub"):
+            (cwd / nombre).write_text("secreto\n")
+        return {"datos": {"estado": "LISTO"}, "costo": 0.02}
+    return _responder_s3(rol, prompt, cwd, esquema, sesion=sesion)

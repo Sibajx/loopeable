@@ -393,3 +393,12 @@ def test_git_de_loopeable_no_corre_hooks_del_repo(tmp_path):
     res, est = correr(r)
     assert all(v == "HECHA" for v in estados(est).values()), estados(est)
     assert not marca.exists(), marca.read_text()
+
+
+def test_secretos_no_entran_a_los_commits(tmp_path):
+    r = repo(tmp_path, [{"titulo": "con-secretos"}])
+    res, est = correr(r)
+    assert estados(est) == {"con-secretos": "HECHA"}
+    archivos = sh(r, "git", "ls-tree", "-r", "--name-only", res["rama"]).split()
+    assert "app.py" in archivos
+    assert not [a for a in archivos if ".env" in a or a.endswith((".pem", ".key")) or "/id_" in "/" + a], archivos
