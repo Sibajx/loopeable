@@ -40,12 +40,14 @@ def detectar_pruebas(raiz: Path) -> list[str]:
 
 
 # Que verificar no ensucie el worktree: sin __pycache__/*.pyc ni .pytest_cache (si no, `git add -A` los commitea).
+CREDENCIAL = re.compile(r"TOKEN|KEY|SECRET|PASSWORD|CREDENTIAL|SSH_AUTH_SOCK", re.I)
 ENTORNO_LIMPIO = {"PYTHONDONTWRITEBYTECODE": "1", "PYTEST_ADDOPTS": "-p no:cacheprovider"}
 
 
 def verificar(wt: Path, comandos: list[str], timeout: int) -> tuple[bool, str]:
     errores = []
-    env = {**os.environ, **ENTORNO_LIMPIO}
+    # Las pruebas ejecutan código que escribió el agente, fuera del hook de frenos: sin credenciales a la vista.
+    env = {k: v for k, v in os.environ.items() if not CREDENCIAL.search(k)} | ENTORNO_LIMPIO
     if os.environ.get("PYTEST_ADDOPTS"):
         env["PYTEST_ADDOPTS"] = os.environ["PYTEST_ADDOPTS"] + " " + ENTORNO_LIMPIO["PYTEST_ADDOPTS"]
     for cmd in comandos:

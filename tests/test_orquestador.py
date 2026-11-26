@@ -331,3 +331,16 @@ def test_revision_proporcional_al_cambio(tmp_path):
         return [e["texto"] for e in est.eventos(tid, 200) if e["tipo"] == "revisor"]
     assert any("chico" in x for x in ev(ids["escribe a.txt uno"]))
     assert any("completo" in x for x in ev(ids["grande"]))
+
+
+def test_verificar_sin_credenciales_en_el_entorno(tmp_path, monkeypatch):
+    # verificar ejecuta código que escribió el agente (pytest, tests/probar-*.sh): no debe ver tus credenciales
+    from loopeable.verificar import verificar
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-x")
+    monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "t")
+    monkeypatch.setenv("GH_TOKEN", "g")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "a")
+    monkeypatch.setenv("MI_VARIABLE", "sigue")
+    cmd = 'test -z "$ANTHROPIC_API_KEY$CLAUDE_CODE_OAUTH_TOKEN$GH_TOKEN$AWS_SECRET_ACCESS_KEY" && test "$MI_VARIABLE" = sigue'
+    ok, log = verificar(tmp_path, [cmd], 30)
+    assert ok, log

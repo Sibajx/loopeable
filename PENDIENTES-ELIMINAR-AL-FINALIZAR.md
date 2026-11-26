@@ -69,6 +69,11 @@ tope de presupuesto, reanudar. Bugs que salieron (el prompt completo para arregl
 - [ ] Revisar de vez en cuando la tabla de planes de SKILL.md (qué incluye cada plan cambia; fuente: claude.com/pricing
       y support.claude.com, artículos de Claude Code por plan y de créditos mensuales de API).
 
+## 1c. Auditoría de seguridad 2026-11-26
+
+- [ ] Atender los hallazgos ALTA/MEDIA de la auditoría con security-suite (reporte local del dueño, fuera del repo).
+      Sin CRÍTICAS. Ya mitigado: `verificar` corre las pruebas sin variables de credenciales en el entorno.
+
 ## 2. Limitaciones conocidas de la v0.1
 
 - [ ] Si se cumple un freno (USD/horas/parar) a media tarea, el trabajo sin commit de ese worktree se descarta y la
