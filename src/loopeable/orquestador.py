@@ -106,6 +106,10 @@ class Orquestador:
             f"# {tid} · {rol} · {r.costo:.3f} USD · {r.turnos} turnos{' · ERROR ' + r.error if r.error else ''}\n\n"
             f"## Prompt\n{prompt}\n\n## Respuesta\n{r.texto}\n\n## Datos\n{r.datos}\n")
         self.est.evento(tid, rol, f"{r.costo:.3f} USD" + (f" · error: {r.error}" if r.error else ""))
+        # El SDK cortó la sesión por max_budget_usd. Si el tope venía del saldo de la corrida (no de usd_por_sesion),
+        # es el presupuesto global el que se acabó: Freno, no un intento fallido.
+        if "maximum budget" in r.error.lower() and usd_max < self.L["usd_por_sesion"]:
+            raise Freno(f"la sesión de {rol} topó su parte del saldo ({usd_max:.2f} USD)")
         return r
 
     def tablero(self):
@@ -282,6 +286,7 @@ class Orquestador:
             return resultado
         except Freno as f:
             self.log(f"⏸️  {tid} vuelve a pendiente: {f}")
+            self.est.evento(tid, "freno", str(f))
             resultado = "PENDIENTE"
             return resultado
         finally:

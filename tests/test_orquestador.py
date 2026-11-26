@@ -204,3 +204,19 @@ def test_freno_cuando_no_alcanza_el_minimo(tmp_path):
     assert orq.freno() is None
     orq.est.sumar_costo_extra(0.80)                                       # quedan 0.20 < 0.25
     assert "presupuesto" in orq.freno()
+
+
+def test_maximum_budget_es_freno_no_intento(tmp_path):
+    # la sesión se cortó por el saldo global → Freno: la tarea vuelve a PENDIENTE, no FALLÓ
+    r = repo(tmp_path, [{"titulo": "sin-saldo"}], paralelo=1, limites={"usd": 0.5})
+    res, est = correr(r)
+    assert estados(est) == {"sin-saldo": "PENDIENTE"}
+    assert "presupuesto" in res["motivo"]
+    assert any(e["tipo"] == "freno" for e in est.eventos("T01"))
+
+
+def test_maximum_budget_por_tope_de_sesion_si_cuenta_como_intento(tmp_path):
+    # si lo que cortó fue usd_por_sesion (sobra saldo global), la tarea no cabe en una sesión: es un intento fallido
+    r = repo(tmp_path, [{"titulo": "sin-saldo"}], paralelo=1, limites={"usd": 5, "usd_por_sesion": 0.3})
+    res, est = correr(r)
+    assert estados(est) == {"sin-saldo": "FALLÓ"}

@@ -9,6 +9,7 @@
     "nada"                        no cambia nada → LISTO (debe rechazarse)
     "caro <archivo>"              escribe el archivo y cuesta 0.30, o el tope de la sesión si es menor
                                   (como el SDK, que corta con "Reached maximum budget")
+    "sin-saldo"                   la sesión siempre topa su presupuesto (error "Reached maximum budget")
 - integrador: resuelve conflictos quedándose con las dos versiones, sin marcadores.
 - revisor: aprueba todo salvo "rechaza-una-vez" la primera vez.
 """
@@ -64,6 +65,8 @@ def responder(rol, prompt, cwd, esquema, sesion=None):
                 return corte
             (cwd / titulo.split(" ", 1)[1]).write_text("caro\n")
             return {"datos": {"estado": "LISTO"}, "costo": 0.30}
+        if titulo == "sin-saldo":
+            return _cortar(float("inf"), sesion) | {"costo": min(0.30, sesion.usd_max)}
         if titulo == "nada":
             return {"datos": {"estado": "LISTO"}, "costo": 0.01}
         return {"datos": {"estado": "NO_PUDE", "nota": "no sé"}, "costo": 0.01}
