@@ -215,12 +215,17 @@ class Orquestador:
             git_ops.crear_worktree(self.raiz, self.rama, wt, rama_t)
         base = git_ops.git(wt, "rev-parse", "HEAD")
         prueba_propia = re.findall(r"Prueba propia \(debe salir 0\): `(.+)`", t["cuerpo"])
-        comandos = self.pruebas + prueba_propia
+
+        def comandos_ahora() -> list[str]:
+            # Sin [hecho] pruebas, se detectan en el worktree cada vez: en un repo nuevo tests/ aparece a media tarea.
+            return (self.cfg["hecho"]["pruebas"] or detectar_pruebas(wt)) + prueba_propia
+
         retro, huellas, historia, resultado = "", [], [], "FALLÓ"
         self.log(f"🔁 {tid} · {t['titulo']}")
         try:
             for intento in range(1, self.L["intentos"] + 1):
                 self.est.cambiar(tid, intentos=intento)
+                comandos = comandos_ahora()
                 prompt = roles.plantilla(
                     "implementador", cwd=wt, perfil_contexto=self.perfil_ctx, aprendizajes=self.aprendizajes(),
                     tid=tid, titulo=t["titulo"], intento=intento, intentos=self.L["intentos"], cuerpo=t["cuerpo"],
@@ -247,6 +252,7 @@ class Orquestador:
                     retro = "Dijiste LISTO pero no hay ningún cambio en el repo. Implementa la tarea."
                     continue
 
+                comandos = comandos_ahora()
                 ok, log = await asyncio.to_thread(verificar, wt, comandos, self.cfg["hecho"]["timeout_pruebas"])
                 if not ok:
                     h = huella(log)

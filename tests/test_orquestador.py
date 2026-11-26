@@ -27,6 +27,8 @@ def repo(tmp_path: Path, tareas: list[dict], **extra) -> Path:
     sh(r, "git", "config", "user.email", "t@t")
     sh(r, "git", "config", "user.name", "t")
     (r / "README.md").write_text("# demo\n")
+    for nombre, texto in extra.get("archivos", {}).items():
+        (r / nombre).write_text(texto)
     limites = {"paralelo": extra.get("paralelo", 3), "intentos": 3, "usd": 5, **extra.get("limites", {})}
     toml = ['objetivo = "probar"', "[puertas]", f"aprobar_plan = {str(extra.get('aprobar', False)).lower()}",
             "[limites]", *(f"{k} = {v}" for k, v in limites.items()), *extra.get("toml", [])]
@@ -279,3 +281,15 @@ def test_commit_sin_pycache(tmp_path, monkeypatch):
     archivos = sh(r, "git", "ls-tree", "-r", "--name-only", res["rama"]).split()
     assert "calc.py" in archivos and "tests/test_calc.py" in archivos
     assert not [f for f in archivos if "__pycache__" in f or f.endswith(".pyc") or ".pytest_cache" in f], archivos
+
+
+def test_pruebas_se_detectan_en_el_worktree(tmp_path):
+    # repo nuevo: hay pyproject.toml pero todavía no tests/; la tarea crea un test que falla
+    r = repo(tmp_path, [{"titulo": "pytest-rojo"}], archivos={"pyproject.toml": '[project]\nname = "x"\nversion = "0"\n'})
+    falsa().SESIONES.clear()
+    res, est = correr(r)
+    assert estados(est)["pytest-rojo"] != "HECHA"
+    rechazos = [e["texto"] for e in est.eventos("T01", 200) if e["tipo"] == "rechazo"]
+    assert any("pytest" in x and "test_rojo" in x for x in rechazos), rechazos
+    prompts = [s.prompt for titulo, s in falsa().SESIONES if s.rol == "implementador" and titulo == "pytest-rojo"]
+    assert any("pytest -q" in p for p in prompts[1:])                    # el implementador ve las pruebas nuevas
