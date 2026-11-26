@@ -45,6 +45,7 @@ class Orquestador:
         self.n_sesion = 0
         self.protegidas: dict[str, str] = {}
         self.env = config_entorno(cfg)
+        avisos.guardar_secretos(cfg)                # el token de Telegram sale del entorno antes de lanzar agentes
         for aviso in avisos_plan(cfg):
             self.log(f"⚠️  {aviso}")
         if cfg["cuenta"]["modo"] == "plan" and os.environ.get("ANTHROPIC_API_KEY"):

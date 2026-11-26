@@ -402,3 +402,40 @@ def test_secretos_no_entran_a_los_commits(tmp_path):
     archivos = sh(r, "git", "ls-tree", "-r", "--name-only", res["rama"]).split()
     assert "app.py" in archivos
     assert not [a for a in archivos if ".env" in a or a.endswith((".pem", ".key")) or "/id_" in "/" + a], archivos
+
+
+def test_token_de_telegram_no_llega_a_los_agentes(tmp_path, monkeypatch):
+    from loopeable import avisos
+    enviados = []
+    monkeypatch.setattr(avisos.urllib.request, "urlopen", lambda req, timeout=0: enviados.append(req.full_url))
+    monkeypatch.setenv("TELEGRAM_TOKEN", "tg-secreto")
+    lector, escritor = os.pipe()                                     # como lo pasa docker/entrada.sh
+    os.write(escritor, b"OTRO_TOKEN=por-fd\n")
+    os.close(escritor)
+    monkeypatch.setenv("LOOPEABLE_FD_SECRETOS", str(lector))
+    r = repo(tmp_path, [{"titulo": "escribe a.txt uno"}],
+             toml=["[avisos]", 'telegram_token_env = "TELEGRAM_TOKEN"', 'telegram_chat = "1"'])
+    vistos = []
+    real = falsa().responder
+    monkeypatch.setattr(falsa(), "responder", lambda *a, **k: (vistos.append(dict(os.environ)), real(*a, **k))[1])
+    res, est = correr(r)
+    assert estados(est) == {"escribe a.txt uno": "HECHA"}
+    assert vistos and not any("TELEGRAM_TOKEN" in v or "LOOPEABLE_FD_SECRETOS" in v for v in vistos)
+    assert not any("tg-secreto" in x for v in vistos for x in v.values())
+    assert any("bottg-secreto/" in u for u in enviados)                # los avisos sí lo usan
+    assert avisos._SECRETOS.get("OTRO_TOKEN") == "por-fd"
+
+
+def test_firewall_solo_abre_los_avisos_configurados(tmp_path):
+    toml = tmp_path / "loopeable.toml"
+    hosts = lambda: subprocess.run([sys.executable, "-I", "-m", "loopeable.avisos", str(toml)],  # noqa: E731
+                                   capture_output=True, text=True).stdout.split()
+    toml.write_text('objetivo = "x"\n')
+    assert hosts() == []
+    toml.write_text('objetivo = "x"\n[avisos]\nntfy = "https://avisos.example.org/tema"\n'
+                    'telegram_token_env = "T"\ntelegram_chat = "1"\n')
+    assert hosts() == ["avisos.example.org", "api.telegram.org"]
+    fw = (AQUI.parent / "docker" / "firewall.sh").read_text()
+    dns = [linea for linea in fw.splitlines() if "--dport 53" in linea]
+    assert dns and all(" -d " in linea for linea in dns)               # DNS solo al resolvedor
+    assert "TELEGRAM_TOKEN" not in (AQUI.parent / "docker" / "compose.yml").read_text()
