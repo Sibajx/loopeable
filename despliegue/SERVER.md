@@ -38,7 +38,10 @@ journalctl -u loopeable@security-suite -f
 ## Verlo desde el celular
 
 - **Avisos:** pon `ntfy = "https://ntfy.sh/<tema-largo-y-secreto>"` en `[avisos]` y suscríbete a ese tema en la app
-  ntfy. Te llega el plan listo, cada ❓ decisión, cada tarea que se atora y el resumen final.
+  ntfy. Te llega el plan listo, cada ❓ decisión, cada tarea que se atora y el resumen final. El firewall abre el
+  dominio de ntfy (o Telegram) solo si `[avisos]` lo usa. El token de Telegram va en un archivo aparte
+  (`LOOPEABLE_AVISOS_ENV=/srv/loopeable/avisos.env`, chmod 600, con `TELEGRAM_TOKEN=...`), no en `secretos.env`:
+  así los agentes no lo ven.
 - **Tablero:** `.loopeable/TABLERO.md` se actualiza en cada cambio. Para verlo por web, sírvelo detrás de Cloudflare
   Access (por ejemplo con un túnel `cloudflared` a un servidor estático de solo lectura sobre `.loopeable/`).
   Nunca lo publiques sin Access: incluye nombres de archivos y notas de tu código.

@@ -71,8 +71,19 @@ tope de presupuesto, reanudar. Bugs que salieron (el prompt completo para arregl
 
 ## 1c. Auditoría de seguridad 2026-11-26
 
-- [ ] Atender los hallazgos ALTA/MEDIA de la auditoría con security-suite (reporte local del dueño, fuera del repo).
-      Sin CRÍTICAS. Ya mitigado: `verificar` corre las pruebas sin variables de credenciales en el entorno.
+- [x] Hallazgos ALTA arreglados (rama `seguridad-altas`, un commit y una prueba cada uno):
+  - [x] E1: la prueba propia vive en su propia columna, la llena solo el planificador, se muestra al aprobar y pasa
+        por los frenos.
+  - [x] A1/E2: Read/Grep/Glob solo dentro del proyecto; prohibidas contra la ruta absoluta; sin WebFetch para el
+        implementador ni sus subagentes.
+  - [x] A2/E3: ningún `git` en el Bash de los agentes; main/master se comprueban antes de integrar y de entregar.
+  - [x] A3: `solo_lectura` vale también para Bash; `.claude/**`, `.mcp.json`, `CLAUDE.md` y `.git` siempre
+        protegidos; git de loopeable corre sin hooks.
+  - [x] S3: `.env*`, `*.pem`, `*.key` y llaves SSH en `EXCLUIR` y `.gitignore`.
+  - [x] S1: DNS solo al resolvedor de Docker; ntfy/Telegram solo si `[avisos]` los usa; el token de Telegram no
+        llega a los agentes.
+- [ ] Atender los hallazgos MEDIA/BAJA de la misma auditoría (reporte local del dueño, fuera del repo).
+      Ya mitigado: `verificar` corre las pruebas sin variables de credenciales en el entorno.
 
 ## 2. Limitaciones conocidas de la v0.1
 

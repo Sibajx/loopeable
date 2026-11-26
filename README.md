@@ -103,7 +103,7 @@ Perfiles incluidos: `generico`, `python`, `security-suite`, `firmware-esp32`. Un
 | `loopeable parar` | Igual, a mano. |
 | Mismo error 2 veces | El vigía propone otro enfoque. 3 veces → 🧱 ESTANCADA. |
 | Ruta prohibida / solo lectura | La herramienta se niega con el motivo; el agente sigue o pide DECISIÓN. |
-| `git push/commit/reset`, `sudo`, despliegues, publicar paquetes, leer `.env`, `curl \| sh` | Negados siempre a los agentes. |
+| Cualquier `git`, `sudo`, despliegues, publicar paquetes, leer `.env` o variables con credenciales, leer fuera del proyecto, `curl \| sh` | Negados siempre a los agentes. loopeable además comprueba que `main` no se movió antes de integrar y de abrir el PR. |
 | Algo que solo tú decides | ❓ DECISIÓN: la tarea espera, las demás siguen, te llega un aviso. |
 
 **Corre los agentes dentro de Docker** si el proyecto tiene algo valioso cerca: los agentes tienen Bash.
