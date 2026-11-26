@@ -138,7 +138,7 @@ class Orquestador:
         self.est.poner_meta("rama", self.rama)
         for t in self.est.todas():                     # una corrida anterior se cortó a la mitad
             if t["estado"] == "EN_CURSO":
-                self.est.cambiar(t["id"], estado="PENDIENTE")
+                self.est.cambiar(t["id"], estado="PENDIENTE", intentos=0)
         git_ops.git(self.raiz, "worktree", "prune", check=False)
         (self.dir / "PARAR").unlink(missing_ok=True)
 
@@ -287,6 +287,7 @@ class Orquestador:
         except Freno as f:
             self.log(f"⏸️  {tid} vuelve a pendiente: {f}")
             self.est.evento(tid, "freno", str(f))
+            self.est.cambiar(tid, intentos=0)          # vuelve a la cola con todos sus intentos
             resultado = "PENDIENTE"
             return resultado
         finally:

@@ -212,6 +212,7 @@ def test_maximum_budget_es_freno_no_intento(tmp_path):
     res, est = correr(r)
     assert estados(est) == {"sin-saldo": "PENDIENTE"}
     assert "presupuesto" in res["motivo"]
+    assert est.tarea("T01")["intentos"] == 0                              # el Freno no gasta intentos
     assert any(e["tipo"] == "freno" for e in est.eventos("T01"))
 
 
@@ -220,3 +221,13 @@ def test_maximum_budget_por_tope_de_sesion_si_cuenta_como_intento(tmp_path):
     r = repo(tmp_path, [{"titulo": "sin-saldo"}], paralelo=1, limites={"usd": 5, "usd_por_sesion": 0.3})
     res, est = correr(r)
     assert estados(est) == {"sin-saldo": "FALLÓ"}
+
+
+def test_reanudar_reinicia_intentos_de_en_curso(tmp_path):
+    r = repo(tmp_path, [{"titulo": "escribe a.txt uno"}])
+    est = Estado(r / ".loopeable")
+    tid = est.nueva("escribe b.txt dos", "d")
+    est.cambiar(tid, estado="EN_CURSO", intentos=2)                     # la corrida anterior se cortó
+    orq = Orquestador(r, config.cargar(r), log=lambda *_: None)
+    orq.preparar()
+    assert orq.est.tarea(tid)["estado"] == "PENDIENTE" and orq.est.tarea(tid)["intentos"] == 0
