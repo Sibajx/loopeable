@@ -37,8 +37,28 @@ def excluir_carpeta_estado(raiz: Path):
         excl.write_text(texto + ("\n" if texto and not texto.endswith("\n") else "") + "\n".join(faltan) + "\n")
 
 
+def cambios_sin_commit(raiz: Path) -> list[str]:
+    """Líneas de `git status --porcelain`, sin contar .loopeable/ (es de loopeable, no del proyecto)."""
+    return git(raiz, "status", "--porcelain", "--untracked-files=normal", "--", ".",
+               ":(exclude).loopeable").splitlines()
+
+
 def sucio(raiz: Path) -> bool:
-    return bool(git(raiz, "status", "--porcelain", "--untracked-files=normal"))
+    return bool(cambios_sin_commit(raiz))
+
+
+def sacar_estado_de_git(raiz: Path) -> list[str]:
+    """Si .loopeable/ quedó versionado (p. ej. un `git add -A` antes de la primera corrida), lo saca del índice
+    con un commit en la rama actual. Devuelve los archivos que salieron. Nunca en main/master."""
+    archivos = git(raiz, "ls-files", ".loopeable").splitlines()
+    if not archivos:
+        return []
+    if git(raiz, "branch", "--show-current") in ("main", "master"):
+        raise ErrorGit("no saco .loopeable de git en main/master: corre loopeable en su rama de integración")
+    git(raiz, "rm", "-r", "-q", "--cached", ".loopeable")
+    git(raiz, "-c", "user.name=loopeable", "-c", "user.email=loopeable@localhost",
+        "commit", "-q", "--no-verify", "-m", "loopeable: saca .loopeable de git")
+    return archivos
 
 
 def preparar_rama(raiz: Path, rama: str):

@@ -141,6 +141,13 @@ class Orquestador:
             raise SystemExit("Hay cambios sin commit. Haz commit (incluido loopeable.toml) antes de correr loopeable.")
         git_ops.preparar_rama(self.raiz, self.rama)
         self.est.poner_meta("rama", self.rama)
+        try:
+            fuera = git_ops.sacar_estado_de_git(self.raiz)
+            if fuera:
+                self.log(f"🧹 .loopeable/ estaba en git ({len(fuera)} archivos); lo saqué con un commit en {self.rama} "
+                         "(main no se toca). Ya está en .git/info/exclude.")
+        except git_ops.ErrorGit as e:
+            self.log(f"⚠️  {e}")
         for t in self.est.todas():                     # una corrida anterior se cortó a la mitad
             if t["estado"] == "EN_CURSO":
                 self.est.cambiar(t["id"], estado="PENDIENTE", intentos=0)
@@ -449,6 +456,10 @@ class Orquestador:
         self.tablero()
         if motivo:
             self.log(f"⏹️  {motivo}")
+        suciedad = git_ops.git(self.raiz, "status", "--porcelain", "--untracked-files=normal").splitlines()
+        if suciedad:
+            self.log("⚠️  El árbol quedó con cambios sin commit (la próxima corrida no arrancará hasta que los "
+                     "resuelvas):\n   " + "\n   ".join(suciedad[:20]))
         return self.resumen(motivo or "sin tareas pendientes")
 
     def resumen(self, motivo: str) -> dict:

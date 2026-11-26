@@ -293,3 +293,22 @@ def test_pruebas_se_detectan_en_el_worktree(tmp_path):
     assert any("pytest" in x and "test_rojo" in x for x in rechazos), rechazos
     prompts = [s.prompt for titulo, s in falsa().SESIONES if s.rol == "implementador" and titulo == "pytest-rojo"]
     assert any("pytest -q" in p for p in prompts[1:])                    # el implementador ve las pruebas nuevas
+
+
+def test_loopeable_versionado_sale_de_git_sin_tocar_main(tmp_path):
+    r = repo(tmp_path, [{"titulo": "escribe a.txt uno"}])
+    sh(r, "git", "add", "-A")                                  # el usuario versionó la bandeja sin querer
+    sh(r, "git", "commit", "-qm", "con bandeja")
+    main_antes = sh(r, "git", "rev-parse", "main")
+    res, est = correr(r)
+    assert estados(est) == {"escribe a.txt uno": "HECHA"}
+    assert sh(r, "git", "status", "--porcelain") == ""
+    assert sh(r, "git", "rev-parse", "main") == main_antes   # main intacto
+    assert sh(r, "git", "ls-files", ".loopeable") == ""      # fuera de git en la rama de integración
+    assert "saca .loopeable de git" in sh(r, "git", "log", "--oneline", res["rama"])
+    # la siguiente corrida arranca (antes: "Hay cambios sin commit")
+    (r / ".loopeable" / "bandeja" / "mas.md").write_text(
+        'x\n```json\n{"tareas": [{"titulo": "escribe b.txt dos", "prioridad": 2, "descripcion": "d", "criterios": ["c"]}]}\n```\n')
+    res, est = correr(r)
+    assert estados(est)["escribe b.txt dos"] == "HECHA"
+    assert sh(r, "git", "status", "--porcelain") == ""
