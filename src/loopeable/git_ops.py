@@ -20,14 +20,21 @@ def es_repo(raiz: Path) -> bool:
     return subprocess.run(["git", "-C", str(raiz), "rev-parse", "--git-dir"], capture_output=True).returncode == 0
 
 
+# Lo que nunca debe entrar a un commit de loopeable aunque el proyecto no tenga .gitignore: el estado de
+# loopeable y la basura que dejan las pruebas y los builds.
+EXCLUIR = [".loopeable/", "__pycache__/", "*.pyc", ".pytest_cache/", ".mypy_cache/", ".ruff_cache/",
+           "node_modules/", ".venv/", "dist/", "build/", "*.egg-info/", ".pio/"]
+
+
 def excluir_carpeta_estado(raiz: Path):
-    """.loopeable/ nunca entra a git (estado, worktrees, bitácoras)."""
+    """Agrega EXCLUIR al info/exclude del repo (lo comparten los worktrees), sin duplicar líneas."""
     excl = Path(git(raiz, "rev-parse", "--git-path", "info/exclude"))
     excl = excl if excl.is_absolute() else raiz / excl
     excl.parent.mkdir(parents=True, exist_ok=True)
     texto = excl.read_text() if excl.exists() else ""
-    if ".loopeable/" not in texto.splitlines():
-        excl.write_text(texto + ("\n" if texto and not texto.endswith("\n") else "") + ".loopeable/\n")
+    faltan = [p for p in EXCLUIR if p not in texto.splitlines()]
+    if faltan:
+        excl.write_text(texto + ("\n" if texto and not texto.endswith("\n") else "") + "\n".join(faltan) + "\n")
 
 
 def sucio(raiz: Path) -> bool:

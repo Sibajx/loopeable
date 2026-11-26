@@ -246,3 +246,36 @@ def test_rechazos_quedan_registrados_con_motivo(tmp_path, capsys):
     main(["-C", str(r), "ver", ids["rechaza-una-vez"]])
     assert "agrega una prueba" in capsys.readouterr().out
     assert any(e["tipo"] == "rechazo" and "agrega una prueba" in e["texto"] for e in datos(r)["eventos"])
+
+
+def test_verificar_no_deja_basura_de_python(tmp_path, monkeypatch):
+    monkeypatch.delenv("PYTHONDONTWRITEBYTECODE", raising=False)      # como en una máquina cualquiera
+    monkeypatch.delenv("PYTEST_ADDOPTS", raising=False)
+    from loopeable.verificar import detectar_pruebas, verificar
+    (tmp_path / "a.py").write_text("x = 1\n")
+    (tmp_path / "test_a.py").write_text("import a\n\n\ndef test_a():\n    assert a.x == 1\n")
+    sh(tmp_path, "git", "init", "-q")
+    ok, log = verificar(tmp_path, detectar_pruebas(tmp_path) + [f"{sys.executable} -m pytest -q"], 120)
+    assert ok, log
+    basura = [p.name for p in tmp_path.rglob("*") if p.name in ("__pycache__", ".pytest_cache") or p.suffix == ".pyc"]
+    assert not basura, basura
+
+
+def test_exclude_base_sin_duplicar(tmp_path):
+    sh(tmp_path, "git", "init", "-q")
+    git_ops.excluir_carpeta_estado(tmp_path)
+    git_ops.excluir_carpeta_estado(tmp_path)
+    lineas = (tmp_path / ".git" / "info" / "exclude").read_text().splitlines()
+    for patron in (".loopeable/", "__pycache__/", "*.pyc", ".pytest_cache/", "node_modules/", ".venv/", ".pio/"):
+        assert lineas.count(patron) == 1, patron
+
+
+def test_commit_sin_pycache(tmp_path, monkeypatch):
+    monkeypatch.delenv("PYTHONDONTWRITEBYTECODE", raising=False)
+    monkeypatch.delenv("PYTEST_ADDOPTS", raising=False)
+    r = repo(tmp_path, [{"titulo": "pyproyecto"}], toml=["[hecho]", f'pruebas = ["{sys.executable} -m pytest -q"]'])
+    res, est = correr(r)
+    assert estados(est) == {"pyproyecto": "HECHA"}
+    archivos = sh(r, "git", "ls-tree", "-r", "--name-only", res["rama"]).split()
+    assert "calc.py" in archivos and "tests/test_calc.py" in archivos
+    assert not [f for f in archivos if "__pycache__" in f or f.endswith(".pyc") or ".pytest_cache" in f], archivos

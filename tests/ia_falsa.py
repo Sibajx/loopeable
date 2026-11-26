@@ -9,6 +9,8 @@
     "nada"                        no cambia nada → LISTO (debe rechazarse)
     "caro <archivo>"              escribe el archivo y cuesta 0.30, o el tope de la sesión si es menor
                                   (como el SDK, que corta con "Reached maximum budget")
+    "pyproyecto"                  escribe calc.py y tests/test_calc.py (pasa con pytest) → LISTO
+    "pytest-rojo"                 escribe tests/test_rojo.py con una prueba que falla → LISTO
     "sin-saldo"                   la sesión siempre topa su presupuesto (error "Reached maximum budget")
 - integrador: resuelve conflictos quedándose con las dos versiones, sin marcadores.
 - revisor: aprueba todo salvo "rechaza-una-vez" la primera vez.
@@ -65,6 +67,15 @@ def responder(rol, prompt, cwd, esquema, sesion=None):
                 return corte
             (cwd / titulo.split(" ", 1)[1]).write_text("caro\n")
             return {"datos": {"estado": "LISTO"}, "costo": 0.30}
+        if titulo in ("pyproyecto", "pytest-rojo"):
+            (cwd / "tests").mkdir(exist_ok=True)
+            if titulo == "pyproyecto":
+                (cwd / "calc.py").write_text("def suma(a, b):\n    return a + b\n")
+                (cwd / "tests" / "test_calc.py").write_text("from calc import suma\n\n\n"
+                                                            "def test_suma():\n    assert suma(2, 3) == 5\n")
+            else:
+                (cwd / "tests" / "test_rojo.py").write_text("def test_rojo():\n    assert 1 == 2\n")
+            return {"datos": {"estado": "LISTO"}, "costo": 0.02}
         if titulo == "sin-saldo":
             return _cortar(float("inf"), sesion) | {"costo": min(0.30, sesion.usd_max)}
         if titulo == "nada":

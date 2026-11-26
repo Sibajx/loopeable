@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -32,15 +33,25 @@ def detectar_pruebas(raiz: Path) -> list[str]:
     c += [f"bash {p.relative_to(raiz)}" for p in pruebas]
     # Sintaxis de lo que haya, aunque no existan pruebas (barato y atrapa lo peor)
     c.append("for f in $(git ls-files -co --exclude-standard '*.sh'); do bash -n \"$f\" || exit 1; done")
-    c.append("f=$(git ls-files -co --exclude-standard '*.py'); [ -z \"$f\" ] || python3 -m py_compile $f")
+    # compile() y no py_compile: py_compile escribe .pyc aunque esté PYTHONDONTWRITEBYTECODE
+    c.append("f=$(git ls-files -co --exclude-standard '*.py'); [ -z \"$f\" ] || python3 -c "
+             "'import sys\nfor f in sys.argv[1:]: compile(open(f, \"rb\").read(), f, \"exec\")' $f")
     return c
+
+
+# Que verificar no ensucie el worktree: sin __pycache__/*.pyc ni .pytest_cache (si no, `git add -A` los commitea).
+ENTORNO_LIMPIO = {"PYTHONDONTWRITEBYTECODE": "1", "PYTEST_ADDOPTS": "-p no:cacheprovider"}
 
 
 def verificar(wt: Path, comandos: list[str], timeout: int) -> tuple[bool, str]:
     errores = []
+    env = {**os.environ, **ENTORNO_LIMPIO}
+    if os.environ.get("PYTEST_ADDOPTS"):
+        env["PYTEST_ADDOPTS"] = os.environ["PYTEST_ADDOPTS"] + " " + ENTORNO_LIMPIO["PYTEST_ADDOPTS"]
     for cmd in comandos:
         try:
-            r = subprocess.run(["bash", "-c", cmd], cwd=wt, capture_output=True, text=True, timeout=timeout)
+            r = subprocess.run(["bash", "-c", cmd], cwd=wt, capture_output=True, text=True, timeout=timeout,
+                               env=env)
             if r.returncode != 0:
                 errores.append(f"$ {cmd}  → salió {r.returncode}\n{(r.stdout + r.stderr)[-2500:]}")
         except subprocess.TimeoutExpired:
