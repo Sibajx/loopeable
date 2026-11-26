@@ -1,0 +1,11 @@
+{
+  "name": "loopeable",
+  "owner": { "name": "Sibajx" },
+  "plugins": [
+    {
+      "name": "loopeable",
+      "source": "./",
+      "description": "Un loop que orquesta loops de Claude Code con agentes y subagentes."
+    }
+  ]
+}

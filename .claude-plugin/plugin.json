@@ -1,0 +1,9 @@
+{
+  "name": "loopeable",
+  "description": "Deja a Claude Code trabajando: un loop que orquesta loops con agentes y subagentes en paralelo, verificación, revisión, puerta de seguridad, frenos y avisos al celular.",
+  "version": "0.1.0",
+  "author": { "name": "Sibajx" },
+  "repository": "https://github.com/Sibajx/loopeable",
+  "license": "MIT",
+  "keywords": ["loop", "agents", "subagents", "orchestration", "automation", "claude-agent-sdk"]
+}

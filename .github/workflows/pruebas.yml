@@ -1,0 +1,27 @@
+name: pruebas
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v6
+      - name: Sintaxis
+        run: |
+          for f in $(git ls-files '*.sh'); do bash -n "$f"; done
+          for f in $(git ls-files '*.json'); do python3 -m json.tool "$f" > /dev/null; done
+      - name: Pruebas (IA falsa, sin gastar)
+        run: |
+          git config --global user.email ci@ci && git config --global user.name ci
+          uv run --python 3.12 --extra dev pytest -q

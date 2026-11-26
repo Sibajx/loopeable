@@ -1,0 +1,26 @@
+# Corre loopeable en el server como servicio, un proyecto por instancia:
+#   sudo cp despliegue/loopeable@.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl start loopeable@security-suite      # usa /srv/loopeable/proyectos/security-suite
+#   journalctl -u loopeable@security-suite -f            # ver el avance
+#   systemctl status loopeable@security-suite
+# Las credenciales van en /srv/loopeable/secretos.env (chmod 600, dueño root):
+#   CLAUDE_CODE_OAUTH_TOKEN=...      (o ANTHROPIC_API_KEY=...)
+#   TELEGRAM_TOKEN=...               (opcional)
+[Unit]
+Description=loopeable en %i
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Type=exec
+Environment=PROYECTO=/srv/loopeable/proyectos/%i
+EnvironmentFile=/srv/loopeable/secretos.env
+ExecStart=/usr/bin/docker compose -f /srv/loopeable/loopeable/docker/compose.yml -p loopeable-%i run --rm loopeable correr
+# `loopeable parar` dentro del proyecto hace un alto limpio; esto es el alto de emergencia:
+ExecStop=/usr/bin/touch /srv/loopeable/proyectos/%i/.loopeable/PARAR
+TimeoutStopSec=15min
+Restart=no
+
+[Install]
+WantedBy=multi-user.target

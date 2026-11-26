@@ -1,0 +1,42 @@
+# loopeable.toml para Sibajx/Security-Suite. Cópialo a la raíz del repo de la suite y haz commit.
+objetivo = "Que security-suite cubra los 15 ataques típicos de apps hechas con IA, empezando por los huecos reales (webhooks de pago e inyección al chatbot), sin romper la consistencia de la suite."
+perfil = "security-suite"
+fuentes = ["bandeja"]          # pon cada nueva tanda de ideas en .loopeable/bandeja/*.md
+
+[hecho]
+# Lo mismo que corre el CI de la suite (.github/workflows/pruebas.yml)
+pruebas = [
+  "for f in $(git ls-files -co --exclude-standard '*.sh'); do bash -n \"$f\" || exit 1; done",
+  "python3 -m py_compile $(git ls-files -co --exclude-standard '*.py')",
+  "for f in $(git ls-files -co --exclude-standard '*.json'); do python3 -m json.tool \"$f\" >/dev/null || exit 1; done",
+  "for t in tests/probar-*.sh; do bash \"$t\" || exit 1; done",
+]
+criterios = [
+  "Todo en español, salvo README.en.md, que se mantiene a la par en inglés.",
+  "Ningún script nuevo hace pruebas en vivo fuera de los niveles de reglas-de-enfrentamiento.md.",
+]
+
+[limites]
+usd = 25
+horas = 6
+intentos = 3
+tareas = 30
+profundidad = 2
+paralelo = 4
+
+[rutas]
+# Además de las de siempre (secretos: ni leer ni escribir), aquí no se escribe:
+solo_lectura = [".git/**", ".github/workflows/**", "loopeable.toml", "LICENSE", "NOTICE",
+                "skills/security-suite/owasp/**"]   # owasp/ es de terceros (Apache 2.0)
+
+[puertas]
+aprobar_plan = true
+seguridad = ""                 # opcional: ruta a OTRO clon de la suite, para que la suite revise sus propios cambios
+bloquear_en = ["🔴"]
+
+[entrega]
+rama = "loopeable/{fecha}"
+pr = false
+
+[avisos]
+ntfy = ""                      # p. ej. "https://ntfy.sh/<tema-largo-y-secreto>"
