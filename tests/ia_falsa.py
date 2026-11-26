@@ -7,6 +7,12 @@
     "pregunta"                    → DECISIÓN
     "padre"                       escribe padre.txt y pide una subtarea "escribe hija.txt hija"
     "nada"                        no cambia nada → LISTO (debe rechazarse)
+    "caro <archivo>"              escribe el archivo y cuesta 0.30, o el tope de la sesión si es menor
+                                  (como el SDK, que corta con "Reached maximum budget")
+    "pyproyecto"                  escribe calc.py y tests/test_calc.py (pasa con pytest) → LISTO
+    "pytest-rojo"                 escribe tests/test_rojo.py con una prueba que falla → LISTO
+    "grande"                      escribe grande.txt de 100 líneas → LISTO (diff grande para el revisor)
+    "sin-saldo"                   la sesión siempre topa su presupuesto (error "Reached maximum budget")
 - integrador: resuelve conflictos quedándose con las dos versiones, sin marcadores.
 - revisor: aprueba todo salvo "rechaza-una-vez" la primera vez.
 """
@@ -15,14 +21,25 @@ import re
 from pathlib import Path
 
 LLAMADAS = []
+SESIONES = []          # (titulo, ia.Sesion) de cada llamada: modelo, subagentes, tope de USD…
 _rechazos = set()
 
 
-def responder(rol, prompt, cwd, esquema):
+def _cortar(costo, sesion):
+    """Como el SDK: si la sesión topa su max_budget_usd, se corta con error y cobra lo gastado."""
+    tope = sesion.usd_max if sesion is not None and sesion.usd_max is not None else None
+    if tope is not None and costo > tope:
+        return {"costo": tope, "error": f"ResultError: Claude Code returned an error result: "
+                                         f"Reached maximum budget (${tope:.2f}) (exit code: 1)"}
+    return None
+
+
+def responder(rol, prompt, cwd, esquema, sesion=None):
     cwd = Path(cwd)
     m = re.search(r"Tu tarea: (T\d+) · (.+?) \(intento", prompt) or re.search(r"Tarea (T\d+) · (.+)", prompt)
     titulo = m.group(2).strip() if m else ""
     LLAMADAS.append((rol, titulo))
+    SESIONES.append((titulo, sesion))
 
     if rol == "planificador":
         plan = re.search(r"```json\s*(.*?)```", prompt, re.S)
@@ -45,6 +62,26 @@ def responder(rol, prompt, cwd, esquema):
         if titulo == "rechaza-una-vez":
             (cwd / "rechazo.txt").write_text("ok\n")
             return {"datos": {"estado": "LISTO"}, "costo": 0.02}
+        if titulo.startswith("caro "):
+            corte = _cortar(0.30, sesion)
+            if corte:
+                return corte
+            (cwd / titulo.split(" ", 1)[1]).write_text("caro\n")
+            return {"datos": {"estado": "LISTO"}, "costo": 0.30}
+        if titulo in ("pyproyecto", "pytest-rojo"):
+            (cwd / "tests").mkdir(exist_ok=True)
+            if titulo == "pyproyecto":
+                (cwd / "calc.py").write_text("def suma(a, b):\n    return a + b\n")
+                (cwd / "tests" / "test_calc.py").write_text("from calc import suma\n\n\n"
+                                                            "def test_suma():\n    assert suma(2, 3) == 5\n")
+            else:
+                (cwd / "tests" / "test_rojo.py").write_text("def test_rojo():\n    assert 1 == 2\n")
+            return {"datos": {"estado": "LISTO"}, "costo": 0.02}
+        if titulo == "grande":
+            (cwd / "grande.txt").write_text("".join(f"línea {i}\n" for i in range(100)))
+            return {"datos": {"estado": "LISTO"}, "costo": 0.02}
+        if titulo == "sin-saldo":
+            return _cortar(float("inf"), sesion) | {"costo": min(0.30, sesion.usd_max)}
         if titulo == "nada":
             return {"datos": {"estado": "LISTO"}, "costo": 0.01}
         return {"datos": {"estado": "NO_PUDE", "nota": "no sé"}, "costo": 0.01}
@@ -57,8 +94,8 @@ def responder(rol, prompt, cwd, esquema):
         return {"datos": {"estado": "LISTO"}, "costo": 0.02}
 
     if rol == "revisor":
-        if titulo == "rechaza-una-vez" and titulo not in _rechazos:
-            _rechazos.add(titulo)
+        if titulo == "rechaza-una-vez" and (titulo, str(cwd)) not in _rechazos:   # una vez por proyecto
+            _rechazos.add((titulo, str(cwd)))
             return {"datos": {"aprobado": False, "cambios": ["agrega una prueba"]}, "costo": 0.01}
         return {"datos": {"aprobado": True}, "costo": 0.01}
 

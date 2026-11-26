@@ -20,7 +20,7 @@ ORQUESTADOR (código, no modelo: límites, frenos, git, estado)
         implementador ── subagentes: explorador, investigador, probador
           → verificar (tus pruebas, sin IA)
           → puerta de seguridad (security-suite, opcional)
-          → revisor ── subagentes en paralelo: correctitud · seguridad · consistencia
+          → revisor ── subagentes en paralelo: correctitud · seguridad · consistencia (solo si el cambio es grande)
           → ¿rechazado? vuelve con la retroalimentación concreta
           → commit → integrador (resuelve choques con otros loops) → rama de integración
         ↳ descubre algo que falta → subtarea → otro loop
@@ -84,7 +84,7 @@ loopeable parar                   # alto limpio
 |---|---|---|
 | `objetivo`, `perfil`, `fuentes` | qué se busca, cómo es "bien hecho" en este repo, de dónde salen tareas | `generico`, `["bandeja"]` |
 | `[hecho]` | `pruebas` (comandos que deben salir 0; vacío = se detectan), `criterios` globales | detectadas |
-| `[limites]` | `usd`, `usd_por_sesion`, `horas`, `intentos`, `tareas`, `profundidad`, `paralelo` | 20 · 4 · 6 · 3 · 40 · 2 · 4 |
+| `[limites]` | `usd`, `usd_por_sesion`, `usd_minimo_sesion` (con menos saldo no arranca ninguna sesión; el restante se reparte entre los loops en curso), `horas`, `intentos`, `tareas`, `profundidad`, `paralelo`, `diff_chico_lineas` y `diff_chico_archivos` (un cambio hasta ese tamaño lo revisa el modelo del implementador sin subagentes) | 20 · 4 · 0.25 · 6 · 3 · 40 · 2 · 4 · 40 · 3 |
 | `[modelos]` | modelo por rol: planificador, implementador, revisor, integrador, vigía, subagentes | Opus para planear y revisar, Sonnet para implementar, Haiku para el vigía |
 | `[rutas]` | `prohibidas` (ni leer ni escribir: secretos), `solo_lectura` (CI, .git), `permitidas` | secretos · CI · .git |
 | `[puertas]` | `aprobar_plan`, `seguridad` (ruta a security-suite), `bloquear_en` | sí · apagada · 🔴 |
@@ -125,9 +125,11 @@ inmutables, logs, fuerza bruta de códigos cortos y un modo rápido para apps he
 ```bash
 mkdir /tmp/prueba-loop && cd /tmp/prueba-loop && git init -q
 printf 'objetivo = "Una calculadora mínima en Python con pruebas"\nperfil = "python"\n[limites]\nusd = 1\n[puertas]\naprobar_plan = false\n' > loopeable.toml
+git add -A && git commit -qm inicio            # primero el commit: .loopeable/ no debe entrar a git
 mkdir -p .loopeable/bandeja && echo "- calc.py con suma y resta, y tests/test_calc.py con pytest" > .loopeable/bandeja/ideas.md
-git add -A && git commit -qm inicio && loopeable correr && git log --oneline --all
+loopeable correr && git log --oneline --all
 ```
+Si `.loopeable/` ya había quedado versionado, loopeable lo saca de git con un commit en su rama (nunca en `main`).
 
 ## Pruebas
 

@@ -33,8 +33,8 @@ th{color:var(--sub);font-weight:500;font-size:12px}td.n{text-align:right;font-va
 .HECHA{color:var(--ok)}.EN_CURSO{color:var(--run)}.PENDIENTE,.PROPUESTA{color:var(--sub)}.DECISIÓN{color:var(--q)}
 .FALLÓ,.ESTANCADA,.NO_PUDE{color:var(--bad)}.nota{color:var(--sub);font-size:12px;max-width:520px}
 .ev{font-family:ui-monospace,monospace;font-size:12px;color:var(--sub);max-height:260px;overflow:auto}
-.ev div{padding:2px 0;border-bottom:1px dashed #1f2430}.vivo{width:8px;height:8px;border-radius:50%;background:var(--ok);display:inline-block;margin-right:6px}
-.alerta{border-color:var(--q)}
+.ev div{white-space:pre-wrap;padding:2px 0;border-bottom:1px dashed #1f2430}.vivo{width:8px;height:8px;border-radius:50%;background:var(--ok);display:inline-block;margin-right:6px}
+.alerta{border-color:var(--q)}.ev .rechazo{color:var(--warn)}
 </style></head><body>
 <header><h1>🔁 loopeable</h1><span class="sub" id="rama"></span><span class="sub" id="act"></span></header>
 <main>
@@ -65,7 +65,7 @@ async function tick(){
     document.getElementById("filas").innerHTML=ts.map(t=>`<tr><td>${esc(t.id)}</td><td>${esc(t.titulo)}${t.padre?` <span class="sub">↳ ${esc(t.padre)}</span>`:""}</td>
       <td><span class="chip ${esc(t.estado)}">${esc(t.estado)}</span></td><td>${t.prioridad}</td><td class="n">${t.intentos}</td>
       <td class="n">${t.costo.toFixed(2)}</td><td class="nota">${esc(t.nota).slice(0,220)}</td></tr>`).join("")||'<tr><td colspan="7" class="sub">Sin tareas todavía.</td></tr>';
-    document.getElementById("ev").innerHTML=d.eventos.map(e=>`<div>${hora(e.ts)} · ${esc(e.tarea)} · ${esc(e.tipo)} ${esc(e.texto).slice(0,160)}</div>`).join("");
+    document.getElementById("ev").innerHTML=d.eventos.map(e=>`<div class="${e.tipo==="rechazo"?"rechazo":""}">${hora(e.ts)} · ${esc(e.tarea)} · ${esc(e.tipo)} ${esc(e.texto.slice(0,e.tipo==="rechazo"?700:160))}</div>`).join("");
   }catch(e){document.getElementById("act").textContent="sin conexión con loopeable tablero"}
 }
 tick();setInterval(tick,3000);

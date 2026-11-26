@@ -20,12 +20,17 @@ DEFECTO: dict = {
     "limites": {
         "usd": 20.0,            # tope de gasto de toda la corrida
         "usd_por_sesion": 4.0,  # tope de cada sesión de un agente
+        "usd_minimo_sesion": 0.25,  # con menos saldo que esto no arranca ninguna sesión (no alcanzaría)
         "horas": 6.0,
         "intentos": 3,          # vueltas de cada loop de tarea
         "tareas": 40,           # tope de tareas (incluye las que crean los loops)
         "profundidad": 2,       # niveles de subtareas (loops que crean loops)
         "paralelo": 4,          # loops de tarea al mismo tiempo
         "turnos_por_sesion": 80,
+        # Revisión proporcional: un diff de hasta estas líneas Y archivos lo revisa el modelo del implementador,
+        # sin subagentes; uno más grande, [modelos] revisor + 3 subagentes en paralelo.
+        "diff_chico_lineas": 40,
+        "diff_chico_archivos": 3,
     },
     "modelos": {                # vacío = el modelo por defecto de tu Claude Code
         "planificador": "claude-opus-5-5",
@@ -153,11 +158,15 @@ criterios = []
 
 [limites]
 usd = 20
+usd_por_sesion = 4
+usd_minimo_sesion = 0.25       # con menos saldo no arranca ninguna sesión
 horas = 6
 intentos = 3
 tareas = 40
 profundidad = 2
 paralelo = 4
+diff_chico_lineas = 40         # hasta 40 líneas y 3 archivos: revisión barata (sin subagentes)
+diff_chico_archivos = 3
 
 [puertas]
 aprobar_plan = true

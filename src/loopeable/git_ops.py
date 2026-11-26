@@ -20,18 +20,45 @@ def es_repo(raiz: Path) -> bool:
     return subprocess.run(["git", "-C", str(raiz), "rev-parse", "--git-dir"], capture_output=True).returncode == 0
 
 
+# Lo que nunca debe entrar a un commit de loopeable aunque el proyecto no tenga .gitignore: el estado de
+# loopeable y la basura que dejan las pruebas y los builds.
+EXCLUIR = [".loopeable/", "__pycache__/", "*.pyc", ".pytest_cache/", ".mypy_cache/", ".ruff_cache/",
+           "node_modules/", ".venv/", "dist/", "build/", "*.egg-info/", ".pio/"]
+
+
 def excluir_carpeta_estado(raiz: Path):
-    """.loopeable/ nunca entra a git (estado, worktrees, bitácoras)."""
+    """Agrega EXCLUIR al info/exclude del repo (lo comparten los worktrees), sin duplicar líneas."""
     excl = Path(git(raiz, "rev-parse", "--git-path", "info/exclude"))
     excl = excl if excl.is_absolute() else raiz / excl
     excl.parent.mkdir(parents=True, exist_ok=True)
     texto = excl.read_text() if excl.exists() else ""
-    if ".loopeable/" not in texto.splitlines():
-        excl.write_text(texto + ("\n" if texto and not texto.endswith("\n") else "") + ".loopeable/\n")
+    faltan = [p for p in EXCLUIR if p not in texto.splitlines()]
+    if faltan:
+        excl.write_text(texto + ("\n" if texto and not texto.endswith("\n") else "") + "\n".join(faltan) + "\n")
+
+
+def cambios_sin_commit(raiz: Path) -> list[str]:
+    """Líneas de `git status --porcelain`, sin contar .loopeable/ (es de loopeable, no del proyecto)."""
+    return git(raiz, "status", "--porcelain", "--untracked-files=normal", "--", ".",
+               ":(exclude).loopeable").splitlines()
 
 
 def sucio(raiz: Path) -> bool:
-    return bool(git(raiz, "status", "--porcelain", "--untracked-files=normal"))
+    return bool(cambios_sin_commit(raiz))
+
+
+def sacar_estado_de_git(raiz: Path) -> list[str]:
+    """Si .loopeable/ quedó versionado (p. ej. un `git add -A` antes de la primera corrida), lo saca del índice
+    con un commit en la rama actual. Devuelve los archivos que salieron. Nunca en main/master."""
+    archivos = git(raiz, "ls-files", ".loopeable").splitlines()
+    if not archivos:
+        return []
+    if git(raiz, "branch", "--show-current") in ("main", "master"):
+        raise ErrorGit("no saco .loopeable de git en main/master: corre loopeable en su rama de integración")
+    git(raiz, "rm", "-r", "-q", "--cached", ".loopeable")
+    git(raiz, "-c", "user.name=loopeable", "-c", "user.email=loopeable@localhost",
+        "commit", "-q", "--no-verify", "-m", "loopeable: saca .loopeable de git")
+    return archivos
 
 
 def preparar_rama(raiz: Path, rama: str):
@@ -58,6 +85,17 @@ def quitar_worktree(raiz: Path, ruta: Path):
 def diff(wt: Path, base: str) -> str:
     git(wt, "add", "-A")
     return git(wt, "diff", "--cached", base, "--stat", "--patch", "--no-color")
+
+
+def tamano_diff(wt: Path, base: str) -> tuple[int, int]:
+    """(líneas agregadas + quitadas, archivos) del cambio contra base. Los binarios cuentan como archivo."""
+    git(wt, "add", "-A")
+    lineas = archivos = 0
+    for fila in git(wt, "diff", "--cached", "--numstat", base).splitlines():
+        mas, menos, _ = fila.split("\t", 2)
+        archivos += 1
+        lineas += (int(mas) if mas.isdigit() else 0) + (int(menos) if menos.isdigit() else 0)
+    return lineas, archivos
 
 
 def hay_cambios(wt: Path) -> bool:

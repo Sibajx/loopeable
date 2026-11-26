@@ -52,11 +52,19 @@ class Orquestador:
 
     # ───────────────────── utilidades ─────────────────────
 
+    def restante(self) -> float:
+        return self.L["usd"] - self.est.gasto_total()
+
+    def minimo_sesion(self) -> float:
+        """Saldo mínimo para arrancar una sesión (nunca más que el tope total, o nada correría)."""
+        return min(self.L["usd_minimo_sesion"], self.L["usd"])
+
     def freno(self) -> str | None:
         if (self.dir / "PARAR").exists():
             return "pediste parar (.loopeable/PARAR)"
-        if self.est.gasto_total() >= self.L["usd"]:
-            return f"presupuesto agotado ({self.est.gasto_total():.2f}/{self.L['usd']} USD)"
+        if self.est.gasto_total() >= self.L["usd"] or self.restante() < self.minimo_sesion():
+            return (f"presupuesto agotado ({self.est.gasto_total():.2f}/{self.L['usd']} USD; quedan "
+                    f"{max(0.0, self.restante()):.2f}, menos que el mínimo por sesión de {self.minimo_sesion():.2f})")
         if time.time() - self.inicio >= self.L["horas"] * 3600:
             return f"límite de tiempo ({self.L['horas']} h)"
         return None
@@ -70,18 +78,21 @@ class Orquestador:
 
     async def sesion(self, rol: str, prompt: str, cwd: Path, tid: str, herramientas: list[str], editar: bool,
                      esquema: dict | None, subagentes: list[str] | None = None, plugins: list[str] | None = None,
-                     modelo: str | None = None) -> ia.Resultado:
+                     modelo: str | None = None, etiqueta: str = "") -> ia.Resultado:
         motivo = self.freno()
         if motivo:
             raise Freno(motivo)
-        restante = self.L["usd"] - self.est.gasto_total()
+        # El saldo se reparte entre los loops en curso: si cada sesión en paralelo recibiera todo el restante,
+        # juntas se pasarían del tope. Piso en el mínimo (freno() ya garantizó que el restante lo cubre).
+        activos = max(1, sum(t["estado"] == "EN_CURSO" for t in self.est.todas()))
+        usd_max = min(self.L["usd_por_sesion"], max(self.minimo_sesion(), self.restante() / activos))
         s = ia.Sesion(
             rol=rol, prompt=prompt, cwd=cwd, modelo=modelo if modelo is not None else self.M.get(rol, ""),
             herramientas=herramientas, editar=editar, esquema=esquema,
             subagentes=roles.subagentes(subagentes, self.M.get("subagentes", "")) if subagentes else None,
             plugins=plugins or [],
             hook_pre=frenos.hook(cwd, self.cfg["rutas"], lambda h, m: self.est.evento(tid, "negado", f"{h}: {m}")),
-            usd_max=max(0.05, min(self.L["usd_por_sesion"], restante)), turnos_max=self.L["turnos_por_sesion"],
+            usd_max=usd_max, turnos_max=self.L["turnos_por_sesion"],
             env=self.env)
         r = await ia.correr(s)
         if tid.startswith("T"):
@@ -94,8 +105,18 @@ class Orquestador:
         (carpeta / f"{self.n_sesion:04d}-{tid}-{rol}.md").write_text(
             f"# {tid} · {rol} · {r.costo:.3f} USD · {r.turnos} turnos{' · ERROR ' + r.error if r.error else ''}\n\n"
             f"## Prompt\n{prompt}\n\n## Respuesta\n{r.texto}\n\n## Datos\n{r.datos}\n")
-        self.est.evento(tid, rol, f"{r.costo:.3f} USD" + (f" · error: {r.error}" if r.error else ""))
+        self.est.evento(tid, rol, f"{r.costo:.3f} USD" + (f" · {etiqueta}" if etiqueta else "") +
+                        (f" · error: {r.error}" if r.error else ""))
+        # El SDK cortó la sesión por max_budget_usd. Si el tope venía del saldo de la corrida (no de usd_por_sesion),
+        # es el presupuesto global el que se acabó: Freno, no un intento fallido.
+        if "maximum budget" in r.error.lower() and usd_max < self.L["usd_por_sesion"]:
+            raise Freno(f"la sesión de {rol} topó su parte del saldo ({usd_max:.2f} USD)")
         return r
+
+    def _rechazo(self, tid: str, motivo: str):
+        """Por qué se rechazó un intento: evento `rechazo` (ver / tablero) y nota de la tarea mientras siga en curso."""
+        self.est.evento(tid, "rechazo", motivo)
+        self.est.cambiar(tid, nota=motivo[:1000])
 
     def tablero(self):
         marca = {"HECHA": "✅", "PENDIENTE": "⏳", "EN_CURSO": "🔄", "PROPUESTA": "📝", "DECISIÓN": "❓",
@@ -121,9 +142,16 @@ class Orquestador:
             raise SystemExit("Hay cambios sin commit. Haz commit (incluido loopeable.toml) antes de correr loopeable.")
         git_ops.preparar_rama(self.raiz, self.rama)
         self.est.poner_meta("rama", self.rama)
+        try:
+            fuera = git_ops.sacar_estado_de_git(self.raiz)
+            if fuera:
+                self.log(f"🧹 .loopeable/ estaba en git ({len(fuera)} archivos); lo saqué con un commit en {self.rama} "
+                         "(main no se toca). Ya está en .git/info/exclude.")
+        except git_ops.ErrorGit as e:
+            self.log(f"⚠️  {e}")
         for t in self.est.todas():                     # una corrida anterior se cortó a la mitad
             if t["estado"] == "EN_CURSO":
-                self.est.cambiar(t["id"], estado="PENDIENTE")
+                self.est.cambiar(t["id"], estado="PENDIENTE", intentos=0)
         git_ops.git(self.raiz, "worktree", "prune", check=False)
         (self.dir / "PARAR").unlink(missing_ok=True)
 
@@ -195,12 +223,17 @@ class Orquestador:
             git_ops.crear_worktree(self.raiz, self.rama, wt, rama_t)
         base = git_ops.git(wt, "rev-parse", "HEAD")
         prueba_propia = re.findall(r"Prueba propia \(debe salir 0\): `(.+)`", t["cuerpo"])
-        comandos = self.pruebas + prueba_propia
+
+        def comandos_ahora() -> list[str]:
+            # Sin [hecho] pruebas, se detectan en el worktree cada vez: en un repo nuevo tests/ aparece a media tarea.
+            return (self.cfg["hecho"]["pruebas"] or detectar_pruebas(wt)) + prueba_propia
+
         retro, huellas, historia, resultado = "", [], [], "FALLÓ"
         self.log(f"🔁 {tid} · {t['titulo']}")
         try:
             for intento in range(1, self.L["intentos"] + 1):
                 self.est.cambiar(tid, intentos=intento)
+                comandos = comandos_ahora()
                 prompt = roles.plantilla(
                     "implementador", cwd=wt, perfil_contexto=self.perfil_ctx, aprendizajes=self.aprendizajes(),
                     tid=tid, titulo=t["titulo"], intento=intento, intentos=self.L["intentos"], cuerpo=t["cuerpo"],
@@ -211,6 +244,7 @@ class Orquestador:
                                       roles.ESQUEMA_IMPLEMENTAR, roles.PARA_IMPLEMENTAR)
                 if r.error:
                     historia.append(f"intento {intento}: la sesión falló ({r.error[:200]})")
+                    self._rechazo(tid, f"implementador: la sesión falló: {r.error[:500]}")
                     retro = f"La sesión anterior se cortó con un error: {r.error[:500]}. Continúa desde lo que hay."
                     continue
                 d = r.datos if isinstance(r.datos, dict) else {}
@@ -222,13 +256,16 @@ class Orquestador:
                     return estado
                 if not git_ops.hay_cambios(wt):
                     historia.append(f"intento {intento}: dijo LISTO sin cambiar nada")
+                    self._rechazo(tid, "implementador: dijo LISTO sin cambios en el repo")
                     retro = "Dijiste LISTO pero no hay ningún cambio en el repo. Implementa la tarea."
                     continue
 
+                comandos = comandos_ahora()
                 ok, log = await asyncio.to_thread(verificar, wt, comandos, self.cfg["hecho"]["timeout_pruebas"])
                 if not ok:
                     h = huella(log)
                     historia.append(f"intento {intento}: pruebas fallaron (firma {h})")
+                    self._rechazo(tid, "pruebas fallaron:\n" + "\n".join(log.strip().splitlines()[-15:]))
                     retro = f"Fallaron las pruebas:\n```\n{log[-4000:]}\n```"
                     if huellas.count(h) >= 2:
                         self.est.cambiar(tid, nota=f"mismo error 3 veces: {log[-300:]}")
@@ -245,18 +282,26 @@ class Orquestador:
                 motivo = await self._puerta_seguridad(t, wt, base)
                 if motivo:
                     historia.append(f"intento {intento}: la puerta de seguridad lo rechazó")
+                    self._rechazo(tid, f"seguridad: {motivo}")
                     retro = motivo
                     continue
 
+                # Revisión proporcional: un cambio chico no paga Opus + 3 subagentes.
+                lineas, archivos = git_ops.tamano_diff(wt, base)
+                chico = lineas <= self.L["diff_chico_lineas"] and archivos <= self.L["diff_chico_archivos"]
                 rv = await self.sesion("revisor", roles.plantilla(
                     "revisor", perfil_contexto=self.perfil_ctx, perfil_revision=self.perfil_rev or "(nada extra)",
                     tid=tid, titulo=t["titulo"], cuerpo=t["cuerpo"],
                     criterios_globales="\n".join(f"- {c}" for c in self.cfg["hecho"]["criterios"]) or "- (ninguno)",
-                    diff=cambio[:80000]), wt, tid, roles.LECTURA, False, roles.ESQUEMA_REVISION, roles.PARA_REVISAR)
+                    diff=cambio[:80000], como_revisar=roles.REVISAR_CHICO if chico else roles.REVISAR_COMPLETO),
+                    wt, tid, roles.LECTURA, False, roles.ESQUEMA_REVISION, None if chico else roles.PARA_REVISAR,
+                    modelo=self.M.get("implementador", "") if chico else None,
+                    etiqueta=f"{'chico' if chico else 'completo'} ({lineas} líneas, {archivos} archivos)")
                 dv = rv.datos if isinstance(rv.datos, dict) else {}
                 if rv.error or not dv.get("aprobado"):
                     cambios = dv.get("cambios") or [rv.error or "el revisor no dio veredicto"]
                     historia.append(f"intento {intento}: el revisor pidió {len(cambios)} cambios")
+                    self._rechazo(tid, "revisor pidió:\n" + "\n".join(f"- {c}" for c in cambios))
                     retro = "El revisor pidió:\n" + "\n".join(f"- {c}" for c in cambios)
                     continue
 
@@ -265,12 +310,15 @@ class Orquestador:
                     self.est.cambiar(tid, nota="conflicto de merge que el integrador no pudo resolver")
                     return resultado
                 resultado = "HECHA"
+                self.est.cambiar(tid, nota="")
                 self.log(f"✅ {tid} integrada (intento {intento}, {self.est.tarea(tid)['costo']:.2f} USD)")
                 return resultado
             self.est.cambiar(tid, nota="; ".join(historia)[-1000:])
             return resultado
         except Freno as f:
             self.log(f"⏸️  {tid} vuelve a pendiente: {f}")
+            self.est.evento(tid, "freno", str(f))
+            self.est.cambiar(tid, intentos=0)          # vuelve a la cola con todos sus intentos
             resultado = "PENDIENTE"
             return resultado
         finally:
@@ -415,6 +463,10 @@ class Orquestador:
         self.tablero()
         if motivo:
             self.log(f"⏹️  {motivo}")
+        suciedad = git_ops.git(self.raiz, "status", "--porcelain", "--untracked-files=normal").splitlines()
+        if suciedad:
+            self.log("⚠️  El árbol quedó con cambios sin commit (la próxima corrida no arrancará hasta que los "
+                     "resuelvas):\n   " + "\n   ".join(suciedad[:20]))
         return self.resumen(motivo or "sin tareas pendientes")
 
     def resumen(self, motivo: str) -> dict:

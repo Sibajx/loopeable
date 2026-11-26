@@ -1,6 +1,6 @@
 """Una sesión de un agente = una llamada al Claude Agent SDK.
 
-Con LOOPEABLE_IA_FALSA=<ruta a un .py con responder(rol, prompt, cwd, esquema)> no se llama a Claude:
+Con LOOPEABLE_IA_FALSA=<ruta a un .py con responder(rol, prompt, cwd, esquema, sesion)> no se llama a Claude:
 sirve para probar el orquestador completo sin gastar.
 """
 from __future__ import annotations
@@ -85,7 +85,7 @@ def opciones_sdk(s: Sesion):
 async def correr(s: Sesion) -> Resultado:
     falsa = _ia_falsa()
     if falsa:
-        d = falsa.responder(s.rol, s.prompt, s.cwd, s.esquema) or {}
+        d = falsa.responder(s.rol, s.prompt, s.cwd, s.esquema, sesion=s) or {}
         return Resultado(texto=d.get("texto", ""), datos=d.get("datos"), costo=d.get("costo", 0.0),
                          error=d.get("error", ""))
 

@@ -18,9 +18,7 @@ Criterios globales:
 ```
 
 ## Cómo revisar
-Lanza EN PARALELO, en un solo mensaje, los subagentes `revisor-correctitud`, `revisor-seguridad` y
-`revisor-consistencia`, pasándoles la tarea y el diff. Si el cambio es grande, lanza más de uno por dimensión,
-repartiendo archivos. Luego decide tú:
+{{como_revisar}} Luego decide tú:
 - `aprobado: true` solo si cumple cada criterio y no hay problemas de severidad alta o media.
 - Si no, `cambios`: lista concreta (archivo + qué cambiar + por qué). Nada de "mejorar en general".
 

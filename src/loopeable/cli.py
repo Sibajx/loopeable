@@ -87,7 +87,11 @@ def main(argv=None):
         t = est.tarea(a.id)
         print(f"# {t['id']} · {t['titulo']}  [{t['estado']}]\n\n{t['cuerpo']}\n\nNota: {t['nota']}\n")
         for e in reversed(est.eventos(a.id, 30)):
-            print(f"  {e['tipo']:14} {e['texto'][:160]}")
+            texto = e["texto"] if e["tipo"] == "rechazo" else e["texto"][:160]   # el motivo completo
+            primera, *resto = texto.splitlines() or [""]
+            print(f"  {e['tipo']:14} {primera}")
+            for linea in resto:
+                print(f"  {'':14} {linea}")
         return
     if a.cmd == "aprobar":
         ids = _ids(est, a.ids, {"PROPUESTA"})
