@@ -381,3 +381,15 @@ def test_no_integra_ni_entrega_si_main_se_movio(tmp_path):
     assert "intruso.txt" not in sh(r, "git", "ls-tree", "-r", "--name-only", orq.rama)
     assert sh(r, "git", "rev-parse", "main").strip() != main_antes       # el agente sí lo movió…
     assert orq.entregar_pr().startswith("no subo nada")                  # …y loopeable no entrega
+
+
+def test_git_de_loopeable_no_corre_hooks_del_repo(tmp_path):
+    r = repo(tmp_path, [{"titulo": "escribe a.txt uno"}, {"titulo": "escribe a.txt dos"}], paralelo=1)
+    marca = tmp_path / "hook-corrio"
+    hooks = r / ".git" / "hooks"
+    for h in ("pre-commit", "post-commit", "post-merge", "post-checkout", "pre-merge-commit"):
+        (hooks / h).write_text(f"#!/bin/sh\necho {h} >> {marca}\n")
+        (hooks / h).chmod(0o755)
+    res, est = correr(r)
+    assert all(v == "HECHA" for v in estados(est).values()), estados(est)
+    assert not marca.exists(), marca.read_text()

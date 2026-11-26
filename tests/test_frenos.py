@@ -87,3 +87,26 @@ def test_git_bloqueado_en_cualquier_forma():
                 "git update-ref refs/heads/main HEAD", '"git" push', "g''it push", "/usr/bin/git log",
                 "cd x && git commit -m y", "echo $(git rev-parse HEAD)", "env GIT_DIR=.git git log"]:
         assert negar("Bash", {"command": cmd}), cmd
+
+
+def test_solo_lectura_tambien_en_bash(tmp_path):
+    raiz = tmp_path / "repo" / ".loopeable" / "worktrees" / "T01"     # como ve el mundo un implementador
+    raiz.mkdir(parents=True)
+    (tmp_path / "repo" / ".git" / "hooks").mkdir(parents=True)
+    n = lambda h, e: negar(h, e, raiz=raiz)                            # noqa: E731
+    for cmd in ["sed -i s/a/b/ loopeable.toml", "echo x > .github/workflows/p.yml",
+                "echo x >> ../../../.git/hooks/post-merge", "echo '{}' > .mcp.json", "echo hola >> CLAUDE.md",
+                "cp a .claude/settings.json", "echo 'gitdir: /x' > .git"]:
+        assert n("Bash", {"command": cmd}), cmd
+    for ruta in [".claude/settings.json", ".mcp.json", "CLAUDE.md", "sub/CLAUDE.md",
+                 str(tmp_path / "repo" / ".git" / "config")]:
+        assert n("Write", {"file_path": ruta}), ruta
+    assert not n("Read", {"file_path": "CLAUDE.md"})                    # leerlas sí
+    assert not n("Bash", {"command": "cat .gitignore && ls .github"})
+
+
+def test_solo_lectura_minima_aunque_el_toml_la_reemplace():
+    rutas = {**RUTAS, "solo_lectura": ["LICENSE"]}
+    for ruta in ["/proy/.claude/settings.json", "/proy/.mcp.json", "/proy/loopeable.toml", "/proy/.git/config"]:
+        assert negar("Write", {"file_path": ruta}, rutas=rutas), ruta
+    assert negar("Bash", {"command": "echo x >> CLAUDE.md"}, rutas=rutas)

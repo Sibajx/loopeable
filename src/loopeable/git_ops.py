@@ -9,8 +9,13 @@ class ErrorGit(RuntimeError):
     pass
 
 
+# Sin hooks ni fsmonitor del repo: un agente pudo dejar uno en .git/hooks y correría fuera de los frenos al hacer
+# commit, merge o checkout.
+SIN_HOOKS = ["-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false"]
+
+
 def git(cwd: Path, *args, check: bool = True) -> str:
-    r = subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True)
+    r = subprocess.run(["git", "-C", str(cwd), *SIN_HOOKS, *args], capture_output=True, text=True)
     if check and r.returncode != 0:
         raise ErrorGit(f"git {' '.join(args)}: {(r.stderr or r.stdout).strip()[:800]}")
     return r.stdout.strip()
@@ -57,7 +62,7 @@ def sacar_estado_de_git(raiz: Path) -> list[str]:
         raise ErrorGit("no saco .loopeable de git en main/master: corre loopeable en su rama de integración")
     git(raiz, "rm", "-r", "-q", "--cached", ".loopeable")
     git(raiz, "-c", "user.name=loopeable", "-c", "user.email=loopeable@localhost",
-        "commit", "-q", "--no-verify", "-m", "loopeable: saca .loopeable de git")
+        "commit", "-q", "-m", "loopeable: saca .loopeable de git")
     return archivos
 
 
@@ -106,7 +111,7 @@ def hay_cambios(wt: Path) -> bool:
 def commit(wt: Path, mensaje: str):
     git(wt, "add", "-A")
     git(wt, "-c", "user.name=loopeable", "-c", "user.email=loopeable@localhost",
-        "commit", "-q", "--no-verify", "-m", mensaje)
+        "commit", "-q", "-m", mensaje)
 
 
 def descartar(wt: Path, base: str):
@@ -116,8 +121,9 @@ def descartar(wt: Path, base: str):
 
 def traer_base(wt: Path, base: str) -> list[str]:
     """Mezcla la rama de integración dentro del worktree. Devuelve los archivos en conflicto (vacío = limpio)."""
-    r = subprocess.run(["git", "-C", str(wt), "-c", "user.name=loopeable", "-c", "user.email=loopeable@localhost",
-                        "merge", "--no-edit", "-q", base], capture_output=True, text=True)
+    r = subprocess.run(["git", "-C", str(wt), *SIN_HOOKS, "-c", "user.name=loopeable",
+                        "-c", "user.email=loopeable@localhost", "merge", "--no-edit", "-q", base],
+                       capture_output=True, text=True)
     if r.returncode == 0:
         return []
     return git(wt, "diff", "--name-only", "--diff-filter=U").splitlines() or ["(merge falló)"]

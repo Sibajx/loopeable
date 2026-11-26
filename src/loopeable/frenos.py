@@ -43,11 +43,14 @@ def _rel(ruta: str, raiz: Path) -> str | None:
         return None
 
 
-def _coincide(ruta: str, raiz: Path, rel: str, patrones: list[str]) -> str | None:
-    """El patrón que atrapa a la ruta, contra la relativa, el nombre y la ruta absoluta ya resuelta."""
-    absoluta = _resolver(ruta, raiz).as_posix()
+def _coincide(ruta: str, raiz: Path, patrones: list[str]) -> str | None:
+    """El patrón que atrapa a la ruta: contra la relativa a la raíz (si está dentro), el nombre y la ruta absoluta
+    ya resuelta (así `**/.git/**` atrapa también el .git del repo principal visto desde un worktree)."""
+    absoluta = _resolver(ruta, raiz)
+    rel = _rel(ruta, raiz)
+    candidatos = [absoluta.as_posix(), absoluta.name, Path(ruta).name] + ([rel] if rel is not None else [])
     for patron in patrones:
-        if any(fnmatch.fnmatch(x, patron) for x in (rel, Path(rel).name, absoluta)):
+        if any(fnmatch.fnmatch(x, patron) for x in candidatos):
             return patron
     return None
 
@@ -72,18 +75,13 @@ def ruta_bloqueada(ruta: str, raiz: Path, permitidas: list[str], prohibidas: lis
                    escribir: bool, solo_lectura: list[str] = (), fuera: bool | None = None) -> str | None:
     """`fuera`: si se niega una ruta fuera del proyecto (por defecto, solo al escribir)."""
     rel = _rel(ruta, raiz)
-    if rel is None:
-        absoluta = _resolver(ruta, raiz).as_posix()
-        if escribir or fuera:
-            return f"{ruta} está fuera del proyecto"
-        patron = next((p for p in prohibidas if fnmatch.fnmatch(absoluta, p)
-                       or fnmatch.fnmatch(Path(absoluta).name, p)), None)
-        return f"{ruta} es una ruta prohibida ({patron})" if patron else None
-    patron = _coincide(ruta, raiz, rel, prohibidas)
+    if rel is None and (escribir or fuera):
+        return f"{ruta} está fuera del proyecto"
+    patron = _coincide(ruta, raiz, prohibidas)
     if patron:
-        return f"{rel} es una ruta prohibida ({patron})"
+        return f"{rel or ruta} es una ruta prohibida ({patron})"
     if escribir:
-        patron = _coincide(ruta, raiz, rel, solo_lectura)
+        patron = _coincide(ruta, raiz, solo_lectura)
         if patron:
             return f"{rel} es de solo lectura ({patron})"
     if escribir and permitidas and not any(fnmatch.fnmatch(rel, p) or rel.startswith(p.rstrip("*/") + "/")
@@ -102,7 +100,9 @@ def _prefijo_fijo(glob: str) -> str:
     return str(Path(*partes)) if partes else "."
 
 
-def comando_bloqueado(cmd: str, raiz: Path, prohibidas: list[str]) -> str | None:
+def comando_bloqueado(cmd: str, raiz: Path, prohibidas: list[str], solo_lectura: list[str] = ()) -> str | None:
+    """Motivo para negar un comando de Bash. Desde Bash no se distingue leer de escribir, así que una ruta de
+    `solo_lectura` tampoco se puede nombrar (para leerla está Read)."""
     for patron, motivo in COMANDOS_PROHIBIDOS:
         if re.search(patron, cmd, re.I):
             return motivo
@@ -117,14 +117,23 @@ def comando_bloqueado(cmd: str, raiz: Path, prohibidas: list[str]) -> str | None
             w = w.lstrip("<>&0123456789") if re.match(r"\d*[<>]", w) else w
             if re.search(r"[*?\[]", w) and glob_prohibido(w, prohibidas):
                 return f"el comando alcanza una ruta prohibida ({w})"
-            if ruta_bloqueada(w.replace("$HOME", "~"), raiz, [], prohibidas, escribir=False):
+            ruta = w.replace("$HOME", "~")
+            if ruta_bloqueada(ruta, raiz, [], prohibidas, escribir=False):
                 return f"el comando toca una ruta prohibida ({w})"
+            if patron := _coincide(ruta, raiz, solo_lectura):
+                return f"el comando toca una ruta de solo lectura ({w}, {patron}): cámbiala con Edit si se puede"
     return None
+
+
+# Solo lectura aunque el loopeable.toml del proyecto reemplace la lista: git, la config de loopeable y lo que el SDK
+# carga en cada sesión (.claude/, .mcp.json, CLAUDE.md).
+SIEMPRE_SOLO_LECTURA = [".git", ".git/**", "**/.git/**", "loopeable.toml", ".claude/**", ".mcp.json", "CLAUDE.md"]
 
 
 def decidir(herramienta: str, entrada: dict, raiz: Path, rutas: dict) -> str | None:
     """Devuelve el motivo para negar, o None si se permite."""
-    perm, proh, sl = rutas.get("permitidas", []), rutas.get("prohibidas", []), rutas.get("solo_lectura", [])
+    perm, proh = rutas.get("permitidas", []), rutas.get("prohibidas", [])
+    sl = list(rutas.get("solo_lectura", [])) + SIEMPRE_SOLO_LECTURA
     if herramienta in ("Edit", "Write", "MultiEdit", "NotebookEdit"):
         return ruta_bloqueada(entrada.get("file_path") or entrada.get("notebook_path") or "", raiz, perm, proh, True, sl)
     if herramienta in ("Read", "Grep", "Glob"):
@@ -142,7 +151,7 @@ def decidir(herramienta: str, entrada: dict, raiz: Path, rutas: dict) -> str | N
                 return f"{glob} está fuera del proyecto"
         return None
     if herramienta == "Bash":
-        return comando_bloqueado(entrada.get("command", ""), raiz, proh)
+        return comando_bloqueado(entrada.get("command", ""), raiz, proh, sl)
     return None
 
 
