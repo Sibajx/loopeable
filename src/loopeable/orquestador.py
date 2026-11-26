@@ -89,7 +89,7 @@ class Orquestador:
         s = ia.Sesion(
             rol=rol, prompt=prompt, cwd=cwd, modelo=modelo if modelo is not None else self.M.get(rol, ""),
             herramientas=herramientas, editar=editar, esquema=esquema,
-            subagentes=roles.subagentes(subagentes, self.M.get("subagentes", "")) if subagentes else None,
+            subagentes=roles.subagentes(subagentes, self.M.get("subagentes", ""), herramientas) if subagentes else None,
             plugins=plugins or [],
             hook_pre=frenos.hook(cwd, self.cfg["rutas"], lambda h, m: self.est.evento(tid, "negado", f"{h}: {m}")),
             usd_max=usd_max, turnos_max=self.L["turnos_por_sesion"],

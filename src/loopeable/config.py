@@ -44,6 +44,7 @@ DEFECTO: dict = {
         "permitidas": [],       # vacío = todo, salvo las prohibidas
         # ni leer ni escribir (secretos)
         "prohibidas": [".env", ".env.*", "**/.env", "**/.env.*", "**/*.pem", "**/*.key", "**/id_rsa*",
+                       "**/id_ed25519*", "**/id_ecdsa*", "**/id_dsa*",
                        "**/*.p12", "**/credentials*.json", "**/secrets*"],
         # se pueden leer pero no escribir
         "solo_lectura": [".git/**", ".github/workflows/**", "loopeable.toml"],
