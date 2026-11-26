@@ -52,11 +52,19 @@ class Orquestador:
 
     # ───────────────────── utilidades ─────────────────────
 
+    def restante(self) -> float:
+        return self.L["usd"] - self.est.gasto_total()
+
+    def minimo_sesion(self) -> float:
+        """Saldo mínimo para arrancar una sesión (nunca más que el tope total, o nada correría)."""
+        return min(self.L["usd_minimo_sesion"], self.L["usd"])
+
     def freno(self) -> str | None:
         if (self.dir / "PARAR").exists():
             return "pediste parar (.loopeable/PARAR)"
-        if self.est.gasto_total() >= self.L["usd"]:
-            return f"presupuesto agotado ({self.est.gasto_total():.2f}/{self.L['usd']} USD)"
+        if self.est.gasto_total() >= self.L["usd"] or self.restante() < self.minimo_sesion():
+            return (f"presupuesto agotado ({self.est.gasto_total():.2f}/{self.L['usd']} USD; quedan "
+                    f"{max(0.0, self.restante()):.2f}, menos que el mínimo por sesión de {self.minimo_sesion():.2f})")
         if time.time() - self.inicio >= self.L["horas"] * 3600:
             return f"límite de tiempo ({self.L['horas']} h)"
         return None
@@ -74,14 +82,17 @@ class Orquestador:
         motivo = self.freno()
         if motivo:
             raise Freno(motivo)
-        restante = self.L["usd"] - self.est.gasto_total()
+        # El saldo se reparte entre los loops en curso: si cada sesión en paralelo recibiera todo el restante,
+        # juntas se pasarían del tope. Piso en el mínimo (freno() ya garantizó que el restante lo cubre).
+        activos = max(1, sum(t["estado"] == "EN_CURSO" for t in self.est.todas()))
+        usd_max = min(self.L["usd_por_sesion"], max(self.minimo_sesion(), self.restante() / activos))
         s = ia.Sesion(
             rol=rol, prompt=prompt, cwd=cwd, modelo=modelo if modelo is not None else self.M.get(rol, ""),
             herramientas=herramientas, editar=editar, esquema=esquema,
             subagentes=roles.subagentes(subagentes, self.M.get("subagentes", "")) if subagentes else None,
             plugins=plugins or [],
             hook_pre=frenos.hook(cwd, self.cfg["rutas"], lambda h, m: self.est.evento(tid, "negado", f"{h}: {m}")),
-            usd_max=max(0.05, min(self.L["usd_por_sesion"], restante)), turnos_max=self.L["turnos_por_sesion"],
+            usd_max=usd_max, turnos_max=self.L["turnos_por_sesion"],
             env=self.env)
         r = await ia.correr(s)
         if tid.startswith("T"):

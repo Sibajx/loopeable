@@ -20,6 +20,7 @@ DEFECTO: dict = {
     "limites": {
         "usd": 20.0,            # tope de gasto de toda la corrida
         "usd_por_sesion": 4.0,  # tope de cada sesión de un agente
+        "usd_minimo_sesion": 0.25,  # con menos saldo que esto no arranca ninguna sesión (no alcanzaría)
         "horas": 6.0,
         "intentos": 3,          # vueltas de cada loop de tarea
         "tareas": 40,           # tope de tareas (incluye las que crean los loops)
@@ -153,6 +154,8 @@ criterios = []
 
 [limites]
 usd = 20
+usd_por_sesion = 4
+usd_minimo_sesion = 0.25       # con menos saldo no arranca ninguna sesión
 horas = 6
 intentos = 3
 tareas = 40

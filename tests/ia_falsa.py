@@ -7,6 +7,8 @@
     "pregunta"                    → DECISIÓN
     "padre"                       escribe padre.txt y pide una subtarea "escribe hija.txt hija"
     "nada"                        no cambia nada → LISTO (debe rechazarse)
+    "caro <archivo>"              escribe el archivo y cuesta 0.30, o el tope de la sesión si es menor
+                                  (como el SDK, que corta con "Reached maximum budget")
 - integrador: resuelve conflictos quedándose con las dos versiones, sin marcadores.
 - revisor: aprueba todo salvo "rechaza-una-vez" la primera vez.
 """
@@ -15,14 +17,25 @@ import re
 from pathlib import Path
 
 LLAMADAS = []
+SESIONES = []          # (titulo, ia.Sesion) de cada llamada: modelo, subagentes, tope de USD…
 _rechazos = set()
 
 
-def responder(rol, prompt, cwd, esquema):
+def _cortar(costo, sesion):
+    """Como el SDK: si la sesión topa su max_budget_usd, se corta con error y cobra lo gastado."""
+    tope = sesion.usd_max if sesion is not None and sesion.usd_max is not None else None
+    if tope is not None and costo > tope:
+        return {"costo": tope, "error": f"ResultError: Claude Code returned an error result: "
+                                         f"Reached maximum budget (${tope:.2f}) (exit code: 1)"}
+    return None
+
+
+def responder(rol, prompt, cwd, esquema, sesion=None):
     cwd = Path(cwd)
     m = re.search(r"Tu tarea: (T\d+) · (.+?) \(intento", prompt) or re.search(r"Tarea (T\d+) · (.+)", prompt)
     titulo = m.group(2).strip() if m else ""
     LLAMADAS.append((rol, titulo))
+    SESIONES.append((titulo, sesion))
 
     if rol == "planificador":
         plan = re.search(r"```json\s*(.*?)```", prompt, re.S)
@@ -45,6 +58,12 @@ def responder(rol, prompt, cwd, esquema):
         if titulo == "rechaza-una-vez":
             (cwd / "rechazo.txt").write_text("ok\n")
             return {"datos": {"estado": "LISTO"}, "costo": 0.02}
+        if titulo.startswith("caro "):
+            corte = _cortar(0.30, sesion)
+            if corte:
+                return corte
+            (cwd / titulo.split(" ", 1)[1]).write_text("caro\n")
+            return {"datos": {"estado": "LISTO"}, "costo": 0.30}
         if titulo == "nada":
             return {"datos": {"estado": "LISTO"}, "costo": 0.01}
         return {"datos": {"estado": "NO_PUDE", "nota": "no sé"}, "costo": 0.01}

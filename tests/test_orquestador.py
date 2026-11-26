@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -26,8 +27,9 @@ def repo(tmp_path: Path, tareas: list[dict], **extra) -> Path:
     sh(r, "git", "config", "user.email", "t@t")
     sh(r, "git", "config", "user.name", "t")
     (r / "README.md").write_text("# demo\n")
+    limites = {"paralelo": extra.get("paralelo", 3), "intentos": 3, "usd": 5, **extra.get("limites", {})}
     toml = ['objetivo = "probar"', "[puertas]", f"aprobar_plan = {str(extra.get('aprobar', False)).lower()}",
-            "[limites]", f"paralelo = {extra.get('paralelo', 3)}", "intentos = 3", "usd = 5"]
+            "[limites]", *(f"{k} = {v}" for k, v in limites.items()), *extra.get("toml", [])]
     (r / "loopeable.toml").write_text("\n".join(toml) + "\n")
     sh(r, "git", "add", "-A")
     sh(r, "git", "commit", "-qm", "inicio")
@@ -46,6 +48,12 @@ def correr(r: Path) -> tuple[dict, Estado]:
 
 def estados(est):
     return {t["titulo"]: t["estado"] for t in est.todas()}
+
+
+def falsa():
+    """El módulo de la IA falsa que cargó loopeable (para leer las sesiones que registró)."""
+    from loopeable import ia
+    return ia._ia_falsa()
 
 
 def test_paralelo_conflicto_subtareas_y_dependencias(tmp_path):
@@ -105,7 +113,7 @@ def test_plan_espera_aprobacion(tmp_path):
 
 def test_presupuesto_y_parar(tmp_path):
     r = repo(tmp_path, [{"titulo": f"escribe f{i}.txt x"} for i in range(6)], paralelo=1)
-    (r / "loopeable.toml").write_text((r / "loopeable.toml").read_text().replace("usd = 5", "usd = 0.05"))
+    (r / "loopeable.toml").write_text((r / "loopeable.toml").read_text().replace("usd = 5", "usd = 0.3"))
     sh(r, "git", "commit", "-qam", "tope")
     res, est = correr(r)
     assert "presupuesto" in res["motivo"]
@@ -174,3 +182,25 @@ def test_tipo_de_plan():
     assert any("admin" in a for a in avisos_plan(cfg(modo="plan", plan="team")))
     with pytest.raises(SystemExit):
         avisos_plan(cfg(modo="plan", plan="platino"))
+
+
+def test_presupuesto_no_se_pasa_del_tope_en_paralelo(tmp_path):
+    r = repo(tmp_path, [{"titulo": f"caro f{i}.txt"} for i in range(6)], paralelo=3, limites={"usd": 1})
+    falsa().SESIONES.clear()
+    res, est = correr(r)
+    minimo = config.DEFECTO["limites"]["usd_minimo_sesion"]
+    sesiones = [s for _, s in falsa().SESIONES]
+    assert sesiones and all(s.usd_max >= minimo for s in sesiones)        # nada arranca con menos del mínimo
+    assert all(s.usd_max <= 1 for s in sesiones)
+    mayor = max(e for e in (t["costo"] for t in est.todas()))
+    assert est.gasto_total() <= 1 + mayor, est.gasto_total()
+    assert "presupuesto" in res["motivo"]
+    assert any(t["estado"] == "PENDIENTE" for t in est.todas())            # lo que no alcanzó, espera
+
+
+def test_freno_cuando_no_alcanza_el_minimo(tmp_path):
+    r = repo(tmp_path, [{"titulo": "escribe a.txt uno"}], limites={"usd": 1, "usd_minimo_sesion": 0.25})
+    orq = Orquestador(r, config.cargar(r), log=lambda *_: None)
+    assert orq.freno() is None
+    orq.est.sumar_costo_extra(0.80)                                       # quedan 0.20 < 0.25
+    assert "presupuesto" in orq.freno()
