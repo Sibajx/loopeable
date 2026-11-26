@@ -20,7 +20,7 @@ ORQUESTADOR (código, no modelo: límites, frenos, git, estado)
         implementador ── subagentes: explorador, investigador, probador
           → verificar (tus pruebas, sin IA)
           → puerta de seguridad (security-suite, opcional)
-          → revisor ── subagentes en paralelo: correctitud · seguridad · consistencia
+          → revisor ── subagentes en paralelo: correctitud · seguridad · consistencia (solo si el cambio es grande)
           → ¿rechazado? vuelve con la retroalimentación concreta
           → commit → integrador (resuelve choques con otros loops) → rama de integración
         ↳ descubre algo que falta → subtarea → otro loop
@@ -84,7 +84,7 @@ loopeable parar                   # alto limpio
 |---|---|---|
 | `objetivo`, `perfil`, `fuentes` | qué se busca, cómo es "bien hecho" en este repo, de dónde salen tareas | `generico`, `["bandeja"]` |
 | `[hecho]` | `pruebas` (comandos que deben salir 0; vacío = se detectan), `criterios` globales | detectadas |
-| `[limites]` | `usd`, `usd_por_sesion`, `usd_minimo_sesion` (con menos saldo no arranca ninguna sesión; el restante se reparte entre los loops en curso), `horas`, `intentos`, `tareas`, `profundidad`, `paralelo` | 20 · 4 · 0.25 · 6 · 3 · 40 · 2 · 4 |
+| `[limites]` | `usd`, `usd_por_sesion`, `usd_minimo_sesion` (con menos saldo no arranca ninguna sesión; el restante se reparte entre los loops en curso), `horas`, `intentos`, `tareas`, `profundidad`, `paralelo`, `diff_chico_lineas` y `diff_chico_archivos` (un cambio hasta ese tamaño lo revisa el modelo del implementador sin subagentes) | 20 · 4 · 0.25 · 6 · 3 · 40 · 2 · 4 · 40 · 3 |
 | `[modelos]` | modelo por rol: planificador, implementador, revisor, integrador, vigía, subagentes | Opus para planear y revisar, Sonnet para implementar, Haiku para el vigía |
 | `[rutas]` | `prohibidas` (ni leer ni escribir: secretos), `solo_lectura` (CI, .git), `permitidas` | secretos · CI · .git |
 | `[puertas]` | `aprobar_plan`, `seguridad` (ruta a security-suite), `bloquear_en` | sí · apagada · 🔴 |

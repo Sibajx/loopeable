@@ -87,6 +87,17 @@ def diff(wt: Path, base: str) -> str:
     return git(wt, "diff", "--cached", base, "--stat", "--patch", "--no-color")
 
 
+def tamano_diff(wt: Path, base: str) -> tuple[int, int]:
+    """(líneas agregadas + quitadas, archivos) del cambio contra base. Los binarios cuentan como archivo."""
+    git(wt, "add", "-A")
+    lineas = archivos = 0
+    for fila in git(wt, "diff", "--cached", "--numstat", base).splitlines():
+        mas, menos, _ = fila.split("\t", 2)
+        archivos += 1
+        lineas += (int(mas) if mas.isdigit() else 0) + (int(menos) if menos.isdigit() else 0)
+    return lineas, archivos
+
+
 def hay_cambios(wt: Path) -> bool:
     git(wt, "add", "-A")
     return bool(git(wt, "diff", "--cached", "--name-only"))

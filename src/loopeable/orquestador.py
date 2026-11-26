@@ -78,7 +78,7 @@ class Orquestador:
 
     async def sesion(self, rol: str, prompt: str, cwd: Path, tid: str, herramientas: list[str], editar: bool,
                      esquema: dict | None, subagentes: list[str] | None = None, plugins: list[str] | None = None,
-                     modelo: str | None = None) -> ia.Resultado:
+                     modelo: str | None = None, etiqueta: str = "") -> ia.Resultado:
         motivo = self.freno()
         if motivo:
             raise Freno(motivo)
@@ -105,7 +105,8 @@ class Orquestador:
         (carpeta / f"{self.n_sesion:04d}-{tid}-{rol}.md").write_text(
             f"# {tid} · {rol} · {r.costo:.3f} USD · {r.turnos} turnos{' · ERROR ' + r.error if r.error else ''}\n\n"
             f"## Prompt\n{prompt}\n\n## Respuesta\n{r.texto}\n\n## Datos\n{r.datos}\n")
-        self.est.evento(tid, rol, f"{r.costo:.3f} USD" + (f" · error: {r.error}" if r.error else ""))
+        self.est.evento(tid, rol, f"{r.costo:.3f} USD" + (f" · {etiqueta}" if etiqueta else "") +
+                        (f" · error: {r.error}" if r.error else ""))
         # El SDK cortó la sesión por max_budget_usd. Si el tope venía del saldo de la corrida (no de usd_por_sesion),
         # es el presupuesto global el que se acabó: Freno, no un intento fallido.
         if "maximum budget" in r.error.lower() and usd_max < self.L["usd_por_sesion"]:
@@ -285,11 +286,17 @@ class Orquestador:
                     retro = motivo
                     continue
 
+                # Revisión proporcional: un cambio chico no paga Opus + 3 subagentes.
+                lineas, archivos = git_ops.tamano_diff(wt, base)
+                chico = lineas <= self.L["diff_chico_lineas"] and archivos <= self.L["diff_chico_archivos"]
                 rv = await self.sesion("revisor", roles.plantilla(
                     "revisor", perfil_contexto=self.perfil_ctx, perfil_revision=self.perfil_rev or "(nada extra)",
                     tid=tid, titulo=t["titulo"], cuerpo=t["cuerpo"],
                     criterios_globales="\n".join(f"- {c}" for c in self.cfg["hecho"]["criterios"]) or "- (ninguno)",
-                    diff=cambio[:80000]), wt, tid, roles.LECTURA, False, roles.ESQUEMA_REVISION, roles.PARA_REVISAR)
+                    diff=cambio[:80000], como_revisar=roles.REVISAR_CHICO if chico else roles.REVISAR_COMPLETO),
+                    wt, tid, roles.LECTURA, False, roles.ESQUEMA_REVISION, None if chico else roles.PARA_REVISAR,
+                    modelo=self.M.get("implementador", "") if chico else None,
+                    etiqueta=f"{'chico' if chico else 'completo'} ({lineas} líneas, {archivos} archivos)")
                 dv = rv.datos if isinstance(rv.datos, dict) else {}
                 if rv.error or not dv.get("aprobado"):
                     cambios = dv.get("cambios") or [rv.error or "el revisor no dio veredicto"]

@@ -11,6 +11,7 @@
                                   (como el SDK, que corta con "Reached maximum budget")
     "pyproyecto"                  escribe calc.py y tests/test_calc.py (pasa con pytest) → LISTO
     "pytest-rojo"                 escribe tests/test_rojo.py con una prueba que falla → LISTO
+    "grande"                      escribe grande.txt de 100 líneas → LISTO (diff grande para el revisor)
     "sin-saldo"                   la sesión siempre topa su presupuesto (error "Reached maximum budget")
 - integrador: resuelve conflictos quedándose con las dos versiones, sin marcadores.
 - revisor: aprueba todo salvo "rechaza-una-vez" la primera vez.
@@ -75,6 +76,9 @@ def responder(rol, prompt, cwd, esquema, sesion=None):
                                                             "def test_suma():\n    assert suma(2, 3) == 5\n")
             else:
                 (cwd / "tests" / "test_rojo.py").write_text("def test_rojo():\n    assert 1 == 2\n")
+            return {"datos": {"estado": "LISTO"}, "costo": 0.02}
+        if titulo == "grande":
+            (cwd / "grande.txt").write_text("".join(f"línea {i}\n" for i in range(100)))
             return {"datos": {"estado": "LISTO"}, "costo": 0.02}
         if titulo == "sin-saldo":
             return _cortar(float("inf"), sesion) | {"costo": min(0.30, sesion.usd_max)}

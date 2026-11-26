@@ -41,6 +41,13 @@ PARA_PLANEAR = ["explorador", "investigador"]
 PARA_IMPLEMENTAR = ["explorador", "investigador", "probador"]
 PARA_REVISAR = ["revisor-correctitud", "revisor-seguridad", "revisor-consistencia"]
 
+# Revisión proporcional al cambio: el diff chico lo revisa una sola sesión, sin subagentes.
+REVISAR_COMPLETO = ("Lanza EN PARALELO, en un solo mensaje, los subagentes `revisor-correctitud`, `revisor-seguridad` "
+                    "y `revisor-consistencia`, pasándoles la tarea y el diff. Si el cambio es grande, lanza más de uno "
+                    "por dimensión, repartiendo archivos.")
+REVISAR_CHICO = ("El cambio es chico: revísalo tú directamente (correctitud, seguridad y consistencia con el resto del "
+                 "repo), sin subagentes.")
+
 LECTURA = ["Read", "Grep", "Glob"]
 TRABAJO = ["Read", "Grep", "Glob", "Edit", "Write", "MultiEdit", "Bash", "WebSearch", "WebFetch"]
 

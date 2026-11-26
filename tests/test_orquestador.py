@@ -312,3 +312,22 @@ def test_loopeable_versionado_sale_de_git_sin_tocar_main(tmp_path):
     res, est = correr(r)
     assert estados(est)["escribe b.txt dos"] == "HECHA"
     assert sh(r, "git", "status", "--porcelain") == ""
+
+
+def test_revision_proporcional_al_cambio(tmp_path):
+    from loopeable import roles
+    r = repo(tmp_path, [{"titulo": "escribe a.txt uno"}, {"titulo": "grande"}])
+    falsa().SESIONES.clear()
+    res, est = correr(r)
+    assert set(estados(est).values()) == {"HECHA"}
+    revisores = {titulo: s for titulo, s in falsa().SESIONES if s.rol == "revisor"}
+    M = config.DEFECTO["modelos"]
+    chico, grande = revisores["escribe a.txt uno"], revisores["grande"]
+    assert not chico.subagentes and chico.modelo == M["implementador"]
+    assert "Lanza EN PARALELO" not in chico.prompt and "Lanza EN PARALELO" in grande.prompt
+    assert set(grande.subagentes) == set(roles.PARA_REVISAR) and grande.modelo == M["revisor"]
+    ids = {t["titulo"]: t["id"] for t in est.todas()}
+    def ev(tid):
+        return [e["texto"] for e in est.eventos(tid, 200) if e["tipo"] == "revisor"]
+    assert any("chico" in x for x in ev(ids["escribe a.txt uno"]))
+    assert any("completo" in x for x in ev(ids["grande"]))

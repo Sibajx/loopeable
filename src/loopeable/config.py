@@ -27,6 +27,10 @@ DEFECTO: dict = {
         "profundidad": 2,       # niveles de subtareas (loops que crean loops)
         "paralelo": 4,          # loops de tarea al mismo tiempo
         "turnos_por_sesion": 80,
+        # Revisión proporcional: un diff de hasta estas líneas Y archivos lo revisa el modelo del implementador,
+        # sin subagentes; uno más grande, [modelos] revisor + 3 subagentes en paralelo.
+        "diff_chico_lineas": 40,
+        "diff_chico_archivos": 3,
     },
     "modelos": {                # vacío = el modelo por defecto de tu Claude Code
         "planificador": "claude-opus-5-5",
@@ -161,6 +165,8 @@ intentos = 3
 tareas = 40
 profundidad = 2
 paralelo = 4
+diff_chico_lineas = 40         # hasta 40 líneas y 3 archivos: revisión barata (sin subagentes)
+diff_chico_archivos = 3
 
 [puertas]
 aprobar_plan = true
