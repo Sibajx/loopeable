@@ -41,14 +41,29 @@
 
 Funcionó de punta a punta con Claude real: plan, subtarea creada por un loop, rechazo del revisor y corrección,
 tope de presupuesto, reanudar. Bugs que salieron (el prompt completo para arreglarlos está en el chat):
-- [ ] 1. El tope se pasa (1.14/1): mínimo de 0.05 por sesión y paralelo que recibe todo el restante.
-- [ ] 2. Error "maximum budget" del SDK cuenta como intento; debe ser Freno.
-- [ ] 3. Al volver a PENDIENTE por Freno, `intentos` no se reinicia.
-- [ ] 4. No se registra el motivo de cada rechazo (revisor / seguridad / pruebas) en eventos ni en el tablero.
-- [ ] 5. La verificación crea __pycache__/.pytest_cache y se commitean (el revisor lo rechazó).
-- [ ] 6. Las pruebas se detectan una sola vez al arrancar; en repo vacío no incluyen pytest.
-- [ ] 7. Si .loopeable/ quedó versionado, mover la bandeja deja el árbol sucio y la siguiente corrida no arranca.
-- [ ] 8. Revisión proporcional: un .gitignore costó 1.25 USD en 3 intentos por revisar siempre con Opus + 3 subagentes.
+- [x] 1. El tope se pasa (1.14/1): mínimo de 0.05 por sesión y paralelo que recibe todo el restante. → `8609508`
+- [x] 2. Error "maximum budget" del SDK cuenta como intento; debe ser Freno. → `37ace08`
+- [x] 3. Al volver a PENDIENTE por Freno, `intentos` no se reinicia. → `c8e78de`
+- [x] 4. No se registra el motivo de cada rechazo (revisor / seguridad / pruebas) en eventos ni en el tablero. → `1d71467`
+- [x] 5. La verificación crea __pycache__/.pytest_cache y se commitean (el revisor lo rechazó). → `914643f`
+- [x] 6. Las pruebas se detectan una sola vez al arrancar; en repo vacío no incluyen pytest. → `98cfdd1`
+- [x] 7. Si .loopeable/ quedó versionado, mover la bandeja deja el árbol sucio y la siguiente corrida no arranca. → `98cf27d`
+- [x] 8. Revisión proporcional: un .gitignore costó 1.25 USD en 3 intentos por revisar siempre con Opus + 3 subagentes. → `c161126`
+- Decisiones tomadas al arreglarlos (rama `arreglos-corrida-real`), revisar:
+  - [ ] `usd_minimo_sesion` se recorta a `usd` si el tope total es menor (si no, nada correría nunca).
+  - [ ] "maximum budget" solo es Freno si el tope de la sesión venía del saldo de la corrida; si lo que cortó fue
+        `usd_por_sesion` (sobra saldo), sigue contando como intento fallido (la tarea no cabe en una sesión).
+  - [ ] Con el piso del mínimo, N loops en paralelo pueden pasarse del restante hasta (N−1)×`usd_minimo_sesion`
+        (p. ej. quedan 0.50, 3 loops → 0.25 cada uno). Mejor: reservar saldo por sesión al arrancarla.
+  - [ ] Tras un Freno por la parte del saldo de un loop, si todavía queda ≥ mínimo, la misma tarea se relanza
+        enseguida con su parte nueva. Acotado por el tope, pero puede repetir trabajo.
+  - [ ] El chequeo de sintaxis usa `compile()` en vez de `py_compile` (que escribe .pyc aunque esté
+        PYTHONDONTWRITEBYTECODE). Ojo: tu shell exporta PYTHONDONTWRITEBYTECODE=1, por eso aquí no se veía el bug 5;
+        las pruebas lo quitan con monkeypatch.
+  - [ ] Si `[hecho] pruebas` tiene comandos explícitos, no se vuelven a detectar (el usuario manda).
+  - [ ] La puerta de seguridad sigue usando el modelo `[modelos] revisor` sin importar el tamaño del diff.
+  - [ ] Un archivo binario cuenta como archivo pero 0 líneas para el umbral de diff chico.
+  - [ ] Repetir la corrida real (/tmp/prueba-loop desde cero, tope 1 USD) para confirmar los 8 arreglos con Claude.
 - [x] Entrevista pregunta con qué se paga: `[cuenta] modo = "plan" | "api"` (key en archivo aparte, chmod 600).
 - [x] Entrevista pregunta el tipo de plan (`[cuenta] plan`): Free se niega con modo plan; avisos y sugerencias por plan.
 - [ ] Revisar de vez en cuando la tabla de planes de SKILL.md (qué incluye cada plan cambia; fuente: claude.com/pricing

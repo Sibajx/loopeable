@@ -13,7 +13,8 @@ ORCHESTRATOR (code, not the model: limits, brakes, git, state)
   ├─ loop T02 (own worktree) ┼ in parallel
   └─ loop T03 …              ┘
        implementer (+ explorer, researcher, tester) → verify (your tests, no AI) → security gate (security-suite,
-       optional) → reviewer (+ correctness · security · consistency in parallel) → fix … → commit → integrator
+       optional) → reviewer (+ correctness · security · consistency in parallel, only for big diffs) → fix … →
+       commit → integrator
        ↳ finds something missing → subtask → another loop
   watcher: proposes a new approach when a loop repeats the same error; records a lesson at the end
 ```
@@ -26,6 +27,10 @@ ORCHESTRATOR (code, not the model: limits, brakes, git, state)
   `loopeable/<date>`; failures are discarded. `main` is never touched.
 - **Learns.** `LOOPEABLE-APRENDIZAJES.md` keeps one lesson per hard task, read by the next run.
 - **Resumable.** SQLite state in `.loopeable/estado.db`.
+- **Budget-aware.** `[limites] usd_minimo_sesion` (0.25): no session starts with less left than that, and what's
+  left is split across the running loops. Diffs up to `diff_chico_lineas` (40) lines and `diff_chico_archivos` (3)
+  files get a cheap review (implementer's model, no subagents). Every rejected attempt is logged with its reason
+  (`loopeable ver T03`, web board).
 
 ## Install & use
 
@@ -38,6 +43,8 @@ paths not to touch, gates, notifications), writes `loopeable.toml`, shows the pl
 
 CLI: `iniciar` (template) · `planear` · `aprobar todas` · `correr` · `estado` · `ver T03` · `responder T03 "..."` ·
 `reintentar` · `parar` · `pruebas`. New information? Drop another `.md` in `.loopeable/bandeja/` and run again.
+Commit your project before creating `.loopeable/bandeja/` (if `.loopeable/` ends up in git, loopeable removes it
+with a commit on its own branch, never on `main`).
 
 Needs git, Python ≥ 3.11 and Claude credentials (`ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` from
 `claude setup-token`). Run agents inside Docker (`docker/`, sandboxed, optional egress firewall) when anything
