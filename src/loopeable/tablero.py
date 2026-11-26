@@ -39,7 +39,7 @@ th{color:var(--sub);font-weight:500;font-size:12px}td.n{text-align:right;font-va
 <header><h1>🔁 loopeable</h1><span class="sub" id="rama"></span><span class="sub" id="act"></span></header>
 <main>
   <div class="card"><div class="sub">Tareas hechas</div><div class="big" id="hechas">–</div><div class="barra"><div id="bh" style="background:var(--ok);width:0"></div></div></div>
-  <div class="card"><div class="sub">Gasto</div><div class="big" id="gasto">–</div><div class="barra"><div id="bg" style="background:var(--warn);width:0"></div></div></div>
+  <div class="card"><div class="sub" id="lgasto">Gasto</div><div class="big" id="gasto">–</div><div class="barra"><div id="bg" style="background:var(--warn);width:0"></div></div></div>
   <div class="card"><div class="sub">Loops corriendo ahora</div><div class="big" id="corriendo">–</div></div>
   <div class="card" id="cdec"><div class="sub">Esperan tu decisión</div><div class="big" id="dec">–</div></div>
   <div class="card ancho"><table><thead><tr><th>ID</th><th>Tarea</th><th>Estado</th><th>Prio</th><th class="n">Intentos</th><th class="n">USD</th><th>Nota</th></tr></thead><tbody id="filas"></tbody></table></div>
@@ -56,6 +56,7 @@ async function tick(){
     document.getElementById("act").innerHTML='<span class="vivo"></span>actualizado '+new Date().toLocaleTimeString();
     document.getElementById("hechas").textContent=h+" / "+n;
     document.getElementById("bh").style.width=(n?100*h/n:0)+"%";
+    document.getElementById("lgasto").textContent=d.modo==="api"?"Gasto (créditos de API)":"Consumo del plan (equivalente en USD de API)";
     document.getElementById("gasto").textContent="$"+d.gasto_usd.toFixed(2)+(d.tope_usd?" / $"+d.tope_usd:"");
     document.getElementById("bg").style.width=(d.tope_usd?Math.min(100,100*d.gasto_usd/d.tope_usd):0)+"%";
     document.getElementById("corriendo").textContent=ts.filter(t=>t.estado==="EN_CURSO").length;
@@ -73,17 +74,19 @@ tick();setInterval(tick,3000);
 
 def datos(raiz: Path) -> dict:
     est = Estado(raiz / ".loopeable")
-    tope = None
+    tope, modo = None, "plan"
     cfg = raiz / "loopeable.toml"
     if cfg.exists():
         try:
-            tope = tomllib.loads(cfg.read_text()).get("limites", {}).get("usd", 20)
+            c = tomllib.loads(cfg.read_text())
+            tope = c.get("limites", {}).get("usd", 20)
+            modo = c.get("cuenta", {}).get("modo", "plan")
         except tomllib.TOMLDecodeError:
             pass
     ts = est.todas()
     for t in ts:
         t.pop("cuerpo", None)
-    return {"rama": est.meta("rama"), "gasto_usd": est.gasto_total(), "tope_usd": tope, "tareas": ts,
+    return {"rama": est.meta("rama"), "modo": modo, "gasto_usd": est.gasto_total(), "tope_usd": tope, "tareas": ts,
             "eventos": est.eventos(limite=40), "ahora": time.time()}
 
 

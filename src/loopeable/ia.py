@@ -35,6 +35,7 @@ class Sesion:
     plugins: list[str] = field(default_factory=list)
     hook_pre: object = None
     usd_max: float | None = None
+    env: dict = field(default_factory=dict)       # p. ej. ANTHROPIC_API_KEY en modo "api"
     turnos_max: int | None = None
 
 
@@ -75,6 +76,7 @@ def opciones_sdk(s: Sesion):
         hooks={"PreToolUse": [HookMatcher(matcher=None, hooks=[s.hook_pre])]} if s.hook_pre else None,
         max_budget_usd=s.usd_max,
         max_turns=s.turnos_max,
+        env=dict(s.env),
         setting_sources=["project"],      # respeta CLAUDE.md y .claude/ del proyecto, no tu config personal
     )
     return opciones

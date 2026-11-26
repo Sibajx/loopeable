@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import os
 import re
 import shutil
 import subprocess
@@ -18,6 +19,7 @@ import time
 from pathlib import Path
 
 from . import avisos, frenos, git_ops, ia, roles
+from .config import entorno_cuenta as config_entorno
 from .estado import Estado
 from .verificar import detectar_pruebas, huella, verificar
 
@@ -41,6 +43,10 @@ class Orquestador:
         self.perfil_ctx, self.perfil_rev = roles.perfil(cfg["perfil"], raiz)
         self.rama = self.est.meta("rama") or cfg["entrega"]["rama"].format(fecha=time.strftime("%Y-%m-%d_%H%M"))
         self.n_sesion = 0
+        self.env = config_entorno(cfg)
+        if cfg["cuenta"]["modo"] == "plan" and os.environ.get("ANTHROPIC_API_KEY"):
+            self.log("⚠️  [cuenta] modo = \"plan\", pero ANTHROPIC_API_KEY está definida en tu terminal: el SDK la "
+                     "usará y se cobrará a la API. Quítala (unset ANTHROPIC_API_KEY) si quieres usar tu plan.")
 
     # ───────────────────── utilidades ─────────────────────
 
@@ -73,7 +79,8 @@ class Orquestador:
             subagentes=roles.subagentes(subagentes, self.M.get("subagentes", "")) if subagentes else None,
             plugins=plugins or [],
             hook_pre=frenos.hook(cwd, self.cfg["rutas"], lambda h, m: self.est.evento(tid, "negado", f"{h}: {m}")),
-            usd_max=max(0.05, min(self.L["usd_por_sesion"], restante)), turnos_max=self.L["turnos_por_sesion"])
+            usd_max=max(0.05, min(self.L["usd_por_sesion"], restante)), turnos_max=self.L["turnos_por_sesion"],
+            env=self.env)
         r = await ia.correr(s)
         if tid.startswith("T"):
             self.est.sumar_costo(tid, r.costo)
@@ -358,6 +365,8 @@ class Orquestador:
     async def correr(self) -> dict:
         self.preparar()
         self.log(f"🌿 Rama de integración: {self.rama}")
+        self.log("💳 Cuenta: " + ("API key de " + self.cfg["cuenta"]["api_env"] + " (créditos de API)"
+                                  if self.cfg["cuenta"]["modo"] == "api" else "tu plan de Claude (límites de uso)"))
         self.log(f"🧪 Pruebas: {' ; '.join(self.pruebas) or '(ninguna)'}")
         try:
             await self.planear()

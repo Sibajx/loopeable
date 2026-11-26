@@ -130,3 +130,33 @@ def test_tablero_json(tmp_path):
     assert d["tareas"][0]["estado"] == "HECHA" and "cuerpo" not in d["tareas"][0]
     assert d["tope_usd"] == 5 and d["rama"].startswith("loopeable/")
     assert "estado.json" in PAGINA
+
+
+def test_cuenta_api_lee_key_de_archivo(tmp_path, monkeypatch):
+    import stat
+    from loopeable.config import entorno_cuenta
+    archivo = tmp_path / "api.env"
+    archivo.write_text("# créditos\nexport ANTHROPIC_API_KEY='sk-ant-prueba'\n")
+    archivo.chmod(0o600)
+    cfg = {"cuenta": {"modo": "api", "api_env": str(archivo)}}
+    assert entorno_cuenta(cfg) == {"ANTHROPIC_API_KEY": "sk-ant-prueba"}
+    assert entorno_cuenta({"cuenta": {"modo": "plan", "api_env": str(archivo)}}) == {}
+    archivo.chmod(0o644)                                   # legible por otros → se niega
+    with pytest.raises(SystemExit):
+        entorno_cuenta(cfg)
+    with pytest.raises(SystemExit):
+        entorno_cuenta({"cuenta": {"modo": "api", "api_env": str(tmp_path / "no-existe")}})
+
+
+def test_cuenta_api_llega_a_las_sesiones(tmp_path):
+    archivo = tmp_path / "api.env"
+    archivo.write_text("ANTHROPIC_API_KEY=sk-ant-x\n")
+    archivo.chmod(0o600)
+    r = repo(tmp_path, [{"titulo": "escribe a.txt uno"}])
+    (r / "loopeable.toml").write_text((r / "loopeable.toml").read_text() +
+                                     f'[cuenta]\nmodo = "api"\napi_env = "{archivo}"\n')
+    sh(r, "git", "commit", "-qam", "api")
+    orq = Orquestador(r, config.cargar(r), log=lambda *_: None)
+    assert orq.env == {"ANTHROPIC_API_KEY": "sk-ant-x"}
+    from loopeable.tablero import datos
+    assert datos(r)["modo"] == "api"

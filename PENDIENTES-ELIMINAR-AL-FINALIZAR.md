@@ -37,6 +37,20 @@
       > frenos.py, uso correcto de ClaudeAgentOptions (lee types.py del SDK instalado) y si docker/ funciona.
       > Archivo:línea, escenario concreto, severidad y arreglo mínimo.
 
+## 1b. Corrida real 2026-11-26 (/tmp/prueba-loop: 3/3 tareas, 2.66 USD equivalentes del plan)
+
+Funcionó de punta a punta con Claude real: plan, subtarea creada por un loop, rechazo del revisor y corrección,
+tope de presupuesto, reanudar. Bugs que salieron (el prompt completo para arreglarlos está en el chat):
+- [ ] 1. El tope se pasa (1.14/1): mínimo de 0.05 por sesión y paralelo que recibe todo el restante.
+- [ ] 2. Error "maximum budget" del SDK cuenta como intento; debe ser Freno.
+- [ ] 3. Al volver a PENDIENTE por Freno, `intentos` no se reinicia.
+- [ ] 4. No se registra el motivo de cada rechazo (revisor / seguridad / pruebas) en eventos ni en el tablero.
+- [ ] 5. La verificación crea __pycache__/.pytest_cache y se commitean (el revisor lo rechazó).
+- [ ] 6. Las pruebas se detectan una sola vez al arrancar; en repo vacío no incluyen pytest.
+- [ ] 7. Si .loopeable/ quedó versionado, mover la bandeja deja el árbol sucio y la siguiente corrida no arranca.
+- [ ] 8. Revisión proporcional: un .gitignore costó 1.25 USD en 3 intentos por revisar siempre con Opus + 3 subagentes.
+- [x] Entrevista pregunta con qué se paga: `[cuenta] modo = "plan" | "api"` (key en archivo aparte, chmod 600).
+
 ## 2. Limitaciones conocidas de la v0.1
 
 - [ ] Si se cumple un freno (USD/horas/parar) a media tarea, el trabajo sin commit de ese worktree se descarta y la

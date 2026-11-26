@@ -52,6 +52,14 @@ DEFECTO: dict = {
         "rama": "loopeable/{fecha}",
         "pr": False,            # abre un PR en borrador con `gh` al terminar
     },
+    "cuenta": {
+        # "plan": usa la sesión de Claude Code de esta máquina; consume los límites de tu suscripción y los "$"
+        #         del tablero son un equivalente a precios de API, no un cobro.
+        # "api":  usa la API key guardada en `api_env` (p. ej. los créditos mensuales de API de Max/Ultra);
+        #         los "$" son dinero real de esos créditos y tu plan queda libre para trabajar a mano.
+        "modo": "plan",
+        "api_env": "~/.config/loopeable/api.env",   # archivo (chmod 600) con ANTHROPIC_API_KEY=...
+    },
     "avisos": {
         "ntfy": "",             # p. ej. https://ntfy.sh/mi-tema-secreto
         "telegram_token_env": "",  # NOMBRE de la variable con el token (el valor nunca va aquí)
@@ -74,7 +82,30 @@ def cargar(raiz: Path) -> dict:
     cfg = _mezclar(DEFECTO, tomllib.loads(ruta.read_text()))
     if not cfg["objetivo"].strip():
         raise ValueError(f"{ARCHIVO}: falta `objetivo`.")
+    if cfg["cuenta"]["modo"] not in ("plan", "api"):
+        raise ValueError(f"{ARCHIVO}: [cuenta] modo debe ser \"plan\" o \"api\".")
     return cfg
+
+
+def entorno_cuenta(cfg: dict) -> dict[str, str]:
+    """Variables de entorno para las sesiones del SDK según [cuenta]. La key nunca se guarda en loopeable.toml."""
+    if cfg["cuenta"]["modo"] != "api":
+        return {}
+    ruta = Path(cfg["cuenta"]["api_env"]).expanduser()
+    if not ruta.exists():
+        raise SystemExit(f"[cuenta] modo = \"api\" pero no existe {ruta}. Crea el archivo con ANTHROPIC_API_KEY=... "
+                         "(chmod 600) o usa modo = \"plan\".")
+    if ruta.stat().st_mode & 0o077:
+        raise SystemExit(f"{ruta} lo pueden leer otros usuarios: corre `chmod 600 {ruta}`.")
+    env = {}
+    for linea in ruta.read_text().splitlines():
+        linea = linea.strip()
+        if linea and not linea.startswith("#") and "=" in linea:
+            k, v = linea.split("=", 1)
+            env[k.strip().removeprefix("export ").strip()] = v.strip().strip('"\'')
+    if not env.get("ANTHROPIC_API_KEY"):
+        raise SystemExit(f"{ruta} no tiene ANTHROPIC_API_KEY.")
+    return env
 
 
 PLANTILLA = '''# loopeable.toml — lo que el orquestador necesita saber de este proyecto.
@@ -102,6 +133,10 @@ bloquear_en = ["🔴"]
 [entrega]
 rama = "loopeable/{fecha}"
 pr = false
+
+[cuenta]
+modo = "plan"                  # plan = tu suscripción · api = la API key de api_env (créditos de API)
+api_env = "~/.config/loopeable/api.env"
 
 [avisos]
 ntfy = ""

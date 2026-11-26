@@ -38,7 +38,20 @@ agrupada (con opciones y un valor recomendado en cada una):
 8. **Dónde corre**: aquí en segundo plano, en Docker (recomendado si el proyecto tiene secretos cerca: los agentes
    tienen Bash) o en un server 24/7 (ver `despliegue/SERVER.md` del repo de loopeable).
 9. **Avisos**: tema de ntfy y/o bot de Telegram para el celular.
-10. **Perfil**: propón uno según el repo — `security-suite`, `python`, `firmware-esp32` o `generico` — o una ruta a un
+10. **Cuenta: ¿con qué se paga?** Explica en dos líneas y pregunta (recomendado: plan):
+    - **Plan** (`modo = "plan"`, por defecto): usa la sesión de Claude Code de esta máquina. No hay cobros
+      aparte, pero consume los mismos límites de uso que su Claude Code interactivo; una corrida larga o con mucho
+      paralelo puede dejarlo sin uso esa semana. Los "$" del tablero son un equivalente a precios de API.
+      Si elige plan, sugiere `paralelo = 2` y Sonnet en `[modelos]` planificador y revisor para que rinda.
+    - **API** (`modo = "api"`): usa la API key guardada en un archivo aparte (`api_env`, por defecto
+      `~/.config/loopeable/api.env`, chmod 600). Sirve para los créditos mensuales de API que incluyen Max/Ultra
+      (se activan en claude.ai → Configuración → Facturación → "Vincular organización", y la key se crea en
+      platform.claude.com). No cuentan contra su plan, no se acumulan de un mes a otro y, si se acaban, la API deja
+      de responder hasta el siguiente ciclo (sin cobros sorpresa). Aquí el tope `usd` es dinero real.
+    Nunca escribas la key en loopeable.toml ni la pongas en su `~/.zshrc`/`~/.bashrc`: si `ANTHROPIC_API_KEY`
+    queda global, su Claude Code interactivo también la usaría. Si elige API y el archivo no existe, dale los
+    comandos para crearlo (`install -m 600 /dev/null <ruta>` y que él pegue la key; tú no la pidas en el chat).
+11. **Perfil**: propón uno según el repo — `security-suite`, `python`, `firmware-esp32` o `generico` — o una ruta a un
     `.md` propio con secciones `## Contexto` y `## Revisión`.
 
 Escribe `loopeable.toml` (formato: `loopeable iniciar` crea una plantilla comentada) y la bandeja. Muestra el archivo,

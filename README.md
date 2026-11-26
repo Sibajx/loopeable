@@ -50,8 +50,10 @@ Como plugin de Claude Code (para la entrevista con `/loopeable`):
 /plugin marketplace add Sibajx/loopeable
 /plugin install loopeable@loopeable
 ```
-Necesita git, Python ≥ 3.11 y credenciales de Claude: `ANTHROPIC_API_KEY`, o `CLAUDE_CODE_OAUTH_TOKEN` (créalo con
-`claude setup-token` para usar tu plan).
+Necesita git, Python ≥ 3.11 y Claude Code con sesión iniciada (usa tu plan), o una API key en un archivo aparte
+(`[cuenta] modo = "api"`). En Docker o en un server sin sesión: `CLAUDE_CODE_OAUTH_TOKEN` (de `claude setup-token`,
+tu plan) o `ANTHROPIC_API_KEY`. Cada quien corre loopeable con su propia cuenta: no lo uses para mandar
+solicitudes de otras personas con tus credenciales.
 
 ## Uso
 
@@ -87,6 +89,7 @@ loopeable parar                   # alto limpio
 | `[rutas]` | `prohibidas` (ni leer ni escribir: secretos), `solo_lectura` (CI, .git), `permitidas` | secretos · CI · .git |
 | `[puertas]` | `aprobar_plan`, `seguridad` (ruta a security-suite), `bloquear_en` | sí · apagada · 🔴 |
 | `[entrega]` | `rama`, `pr` (push de la rama + PR en borrador con `gh`) | `loopeable/{fecha}` · no |
+| `[cuenta]` | `modo`: `plan` (tu suscripción; los "$" son equivalente de API) o `api` (la key de `api_env`, p. ej. los créditos de API de Max/Ultra) | `plan` |
 | `[avisos]` | `ntfy`, `telegram_token_env`, `telegram_chat` | apagados |
 
 Perfiles incluidos: `generico`, `python`, `security-suite`, `firmware-esp32`. Uno propio es un `.md` con secciones
