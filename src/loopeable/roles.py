@@ -25,14 +25,19 @@ def perfil(nombre_o_ruta: str, raiz: Path) -> tuple[str, str]:
     return "## Sobre este proyecto\n" + secciones.get("Contexto", texto.strip()), secciones.get("Revisión", "")
 
 
-def subagentes(nombres: list[str], modelo: str) -> dict:
+def subagentes(nombres: list[str], modelo: str, del_padre: list[str] | None = None) -> dict:
+    """Definiciones de subagentes. Con `del_padre`, cada uno solo conserva las herramientas que tiene la sesión que
+    lo lanza: un subagente nunca puede más que su padre (p. ej. el investigador del implementador, sin WebFetch)."""
     r = {}
     for n in nombres:
         texto = (AQUI / "subagentes" / f"{n}.md").read_text()
         m = re.match(r"---\n(.*?)\n---\n(.*)", texto, re.S)
         cab = dict(l.split(":", 1) for l in m.group(1).splitlines() if ":" in l)
+        tools = [t.strip() for t in cab.get("tools", "").split(",") if t.strip()]
+        if del_padre is not None:
+            tools = [t for t in tools if t in del_padre]
         r[n] = {"description": cab["description"].strip(), "prompt": m.group(2).strip(),
-                "tools": [t.strip() for t in cab.get("tools", "").split(",") if t.strip()] or None,
+                "tools": tools if tools or del_padre is not None else None,
                 "model": modelo}
     return r
 
@@ -49,7 +54,9 @@ REVISAR_CHICO = ("El cambio es chico: revísalo tú directamente (correctitud, s
                  "repo), sin subagentes.")
 
 LECTURA = ["Read", "Grep", "Glob"]
-TRABAJO = ["Read", "Grep", "Glob", "Edit", "Write", "MultiEdit", "Bash", "WebSearch", "WebFetch"]
+# Sin WebFetch: quien tiene Bash y escribe no debe poder mandar nada a una URL que eligió (ni leerla con una
+# inyección de prompt adentro). WebSearch sí: solo consulta el buscador.
+TRABAJO = ["Read", "Grep", "Glob", "Edit", "Write", "MultiEdit", "Bash", "WebSearch"]
 
 _str = {"type": "string"}
 _lista = {"type": "array", "items": _str}
@@ -112,13 +119,12 @@ ESQUEMA_SEGURIDAD = {
 
 
 def cuerpo_tarea(t: dict) -> str:
-    """Texto de la tarea en markdown, a partir de lo que devolvió el planificador."""
+    """Texto de la tarea en markdown, a partir de lo que devolvió el planificador. La `prueba` no va aquí: se
+    guarda aparte (Estado.nueva) para que nada escrito en el texto libre llegue a ejecutarse."""
     L = [t.get("descripcion", "").strip(), ""]
     if t.get("archivos"):
         L += ["Archivos probables: " + ", ".join(f"`{a}`" for a in t["archivos"]), ""]
     L += ["Criterios de aceptación:"] + [f"- {c}" for c in t.get("criterios", [])]
-    if t.get("prueba"):
-        L += ["", f"Prueba propia (debe salir 0): `{t['prueba']}`"]
     if t.get("decision"):
         L += ["", f"Decisión pendiente del dueño: {t['decision']}"]
     return "\n".join(L).strip()

@@ -16,5 +16,9 @@ services:
       LOOPEABLE_DOMINIOS_EXTRA: ${LOOPEABLE_DOMINIOS_EXTRA:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
-      TELEGRAM_TOKEN: ${TELEGRAM_TOKEN:-}
+    # Secretos de avisos (p. ej. el token de Telegram) en un archivo aparte, no en `environment`: entrada.sh los
+    # saca del entorno y se los pasa a loopeable por un descriptor, para que los agentes no los vean.
+    env_file:
+      - path: ${LOOPEABLE_AVISOS_ENV:-/dev/null}
+        required: false
     # Sin acceso a tu $HOME, ~/.ssh ni a otros proyectos: solo lo que se monta arriba.

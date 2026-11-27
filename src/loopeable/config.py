@@ -44,9 +44,13 @@ DEFECTO: dict = {
         "permitidas": [],       # vacío = todo, salvo las prohibidas
         # ni leer ni escribir (secretos)
         "prohibidas": [".env", ".env.*", "**/.env", "**/.env.*", "**/*.pem", "**/*.key", "**/id_rsa*",
+                       "**/id_ed25519*", "**/id_ecdsa*", "**/id_dsa*",
                        "**/*.p12", "**/credentials*.json", "**/secrets*"],
         # se pueden leer pero no escribir
-        "solo_lectura": [".git/**", ".github/workflows/**", "loopeable.toml"],
+        # (también desde Bash: ahí no se distingue leer de escribir). .claude/, .mcp.json y CLAUDE.md los carga el
+        # SDK en la siguiente sesión: un agente que los cambie se daría permisos o instrucciones a sí mismo.
+        "solo_lectura": [".git", ".git/**", "**/.git/**", ".github/workflows/**", "loopeable.toml",
+                         ".claude/**", ".mcp.json", "CLAUDE.md"],
     },
     "puertas": {
         "aprobar_plan": True,   # el plan espera tu `loopeable aprobar`

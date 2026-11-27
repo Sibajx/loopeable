@@ -10,7 +10,8 @@ ESQUEMA = """
 CREATE TABLE IF NOT EXISTS tareas (
   id TEXT PRIMARY KEY, titulo TEXT, cuerpo TEXT, prioridad INTEGER, estado TEXT,
   depende TEXT, profundidad INTEGER, padre TEXT, intentos INTEGER DEFAULT 0,
-  costo REAL DEFAULT 0, nota TEXT DEFAULT '', rama TEXT DEFAULT '', origen TEXT, creado REAL
+  costo REAL DEFAULT 0, nota TEXT DEFAULT '', rama TEXT DEFAULT '', origen TEXT, creado REAL,
+  prueba TEXT DEFAULT ''
 );
 CREATE TABLE IF NOT EXISTS eventos (ts REAL, tarea TEXT, tipo TEXT, texto TEXT);
 CREATE TABLE IF NOT EXISTS fuentes (ruta TEXT PRIMARY KEY, huella TEXT, ts REAL);
@@ -27,16 +28,21 @@ class Estado:
         self.db = sqlite3.connect(carpeta / "estado.db", isolation_level=None, check_same_thread=False)
         self.db.row_factory = sqlite3.Row
         self.db.executescript(ESQUEMA)
+        columnas = {r[1] for r in self.db.execute("PRAGMA table_info(tareas)")}
+        if "prueba" not in columnas:              # estado.db de una versión anterior
+            self.db.execute("ALTER TABLE tareas ADD COLUMN prueba TEXT DEFAULT ''")
 
     # ── tareas ──
     def nueva(self, titulo: str, cuerpo: str, prioridad: int = 2, depende: list[str] | None = None,
-              profundidad: int = 0, padre: str = "", origen: str = "", estado: str = "PENDIENTE") -> str:
+              profundidad: int = 0, padre: str = "", origen: str = "", estado: str = "PENDIENTE",
+              prueba: str = "") -> str:
+        """`prueba` es el comando propio de la tarea; solo lo llena el planificador, nunca el texto libre."""
         n = self.db.execute("SELECT COUNT(*) FROM tareas").fetchone()[0] + 1
         tid = f"T{n:02d}"
-        self.db.execute("INSERT INTO tareas (id,titulo,cuerpo,prioridad,estado,depende,profundidad,padre,origen,creado)"
-                        " VALUES (?,?,?,?,?,?,?,?,?,?)",
+        self.db.execute("INSERT INTO tareas (id,titulo,cuerpo,prioridad,estado,depende,profundidad,padre,origen,creado,"
+                        "prueba) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                         (tid, titulo, cuerpo, prioridad, estado, json.dumps(depende or []), profundidad, padre,
-                         origen, time.time()))
+                         origen, time.time(), prueba))
         self.evento(tid, "creada", titulo)
         return tid
 

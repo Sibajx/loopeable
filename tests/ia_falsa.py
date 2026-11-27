@@ -107,3 +107,44 @@ def responder(rol, prompt, cwd, esquema, sesion=None):
     if rol == "seguridad":
         return {"datos": {"veredicto": "🟢", "hallazgos": []}, "costo": 0.01}
     return {}
+
+
+def _mover_main(cwd):
+    """Simula un agente que se saltó los frenos y movió main desde su worktree."""
+    import subprocess
+    g = lambda *a: subprocess.run(["git", "-C", str(cwd), *a], check=True, capture_output=True, text=True).stdout
+    nuevo = g("commit-tree", "HEAD^{tree}", "-p", "HEAD", "-m", "intruso").strip()
+    g("update-ref", "refs/heads/main", nuevo)
+
+
+_responder_base = responder
+
+
+def responder(rol, prompt, cwd, esquema, sesion=None):     # noqa: F811
+    m = re.search(r"Tu tarea: (T\d+) · (.+?) \(intento", prompt)
+    if rol == "implementador" and m and m.group(2).strip() == "mueve-main":
+        LLAMADAS.append((rol, "mueve-main"))
+        SESIONES.append(("mueve-main", sesion))
+        (Path(cwd) / "intruso.txt").write_text("x\n")
+        _mover_main(cwd)
+        return {"datos": {"estado": "LISTO"}, "costo": 0.02}
+    return _responder_base(rol, prompt, cwd, esquema, sesion=sesion)
+
+
+_responder_s3 = responder
+
+
+def responder(rol, prompt, cwd, esquema, sesion=None):     # noqa: F811
+    """"con-secretos": escribe app.py y, junto, archivos con pinta de secreto que no deben llegar a un commit."""
+    m = re.search(r"Tu tarea: (T\d+) · (.+?) \(intento", prompt)
+    if rol == "implementador" and m and m.group(2).strip() == "con-secretos":
+        LLAMADAS.append((rol, "con-secretos"))
+        SESIONES.append(("con-secretos", sesion))
+        cwd = Path(cwd)
+        (cwd / "app.py").write_text("x = 1\n")
+        (cwd / "cfg").mkdir(exist_ok=True)
+        for nombre in (".env", ".env.local", "cfg/.env.production", "server.pem", "cfg/tls.key", "id_ed25519",
+                       "id_rsa.pub"):
+            (cwd / nombre).write_text("secreto\n")
+        return {"datos": {"estado": "LISTO"}, "costo": 0.02}
+    return _responder_s3(rol, prompt, cwd, esquema, sesion=sesion)

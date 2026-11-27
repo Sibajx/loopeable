@@ -43,7 +43,9 @@ class Orquestador:
         self.perfil_ctx, self.perfil_rev = roles.perfil(cfg["perfil"], raiz)
         self.rama = self.est.meta("rama") or cfg["entrega"]["rama"].format(fecha=time.strftime("%Y-%m-%d_%H%M"))
         self.n_sesion = 0
+        self.protegidas: dict[str, str] = {}
         self.env = config_entorno(cfg)
+        avisos.guardar_secretos(cfg)                # el token de Telegram sale del entorno antes de lanzar agentes
         for aviso in avisos_plan(cfg):
             self.log(f"⚠️  {aviso}")
         if cfg["cuenta"]["modo"] == "plan" and os.environ.get("ANTHROPIC_API_KEY"):
@@ -89,7 +91,7 @@ class Orquestador:
         s = ia.Sesion(
             rol=rol, prompt=prompt, cwd=cwd, modelo=modelo if modelo is not None else self.M.get(rol, ""),
             herramientas=herramientas, editar=editar, esquema=esquema,
-            subagentes=roles.subagentes(subagentes, self.M.get("subagentes", "")) if subagentes else None,
+            subagentes=roles.subagentes(subagentes, self.M.get("subagentes", ""), herramientas) if subagentes else None,
             plugins=plugins or [],
             hook_pre=frenos.hook(cwd, self.cfg["rutas"], lambda h, m: self.est.evento(tid, "negado", f"{h}: {m}")),
             usd_max=usd_max, turnos_max=self.L["turnos_por_sesion"],
@@ -140,6 +142,7 @@ class Orquestador:
         git_ops.excluir_carpeta_estado(self.raiz)
         if git_ops.sucio(self.raiz):
             raise SystemExit("Hay cambios sin commit. Haz commit (incluido loopeable.toml) antes de correr loopeable.")
+        self.protegidas = git_ops.shas(self.raiz)       # main/master tal como estaban: se comprueban al integrar
         git_ops.preparar_rama(self.raiz, self.rama)
         self.est.poner_meta("rama", self.rama)
         try:
@@ -191,9 +194,15 @@ class Orquestador:
                 if len(self.est.todas()) >= self.L["tareas"]:
                     self.log(f"   tope de {self.L['tareas']} tareas: el resto del plan se descarta")
                     break
+                prueba = (t.get("prueba") or "").strip()
+                bloqueo = frenos.comando_bloqueado(prueba, self.raiz, self.cfg["rutas"]["prohibidas"]) if prueba else None
+                if bloqueo:
+                    self.log(f"   ⚠️  la prueba propia de «{t['titulo']}» se descarta: {bloqueo}")
+                    self.est.evento("plan", "prueba-bloqueada", f"{t['titulo']}: {bloqueo}")
+                    prueba = ""
                 por_titulo[t["titulo"]] = self.est.nueva(
                     t["titulo"], roles.cuerpo_tarea(t), int(t.get("prioridad", 2)), origen=p.name,
-                    estado="DECISIÓN" if t.get("decision") else estado_inicial)
+                    estado="DECISIÓN" if t.get("decision") else estado_inicial, prueba=prueba)
                 if t.get("decision"):
                     self.est.cambiar(por_titulo[t["titulo"]], nota=t["decision"])
             for t in r.datos.get("tareas", []):
@@ -222,7 +231,11 @@ class Orquestador:
         async with self.lock:
             git_ops.crear_worktree(self.raiz, self.rama, wt, rama_t)
         base = git_ops.git(wt, "rev-parse", "HEAD")
-        prueba_propia = re.findall(r"Prueba propia \(debe salir 0\): `(.+)`", t["cuerpo"])
+        # La prueba propia viene de su columna (la llena solo el planificador) y pasa otra vez por los frenos:
+        # se ejecuta con bash -c, fuera del hook.
+        prueba = t.get("prueba") or ""
+        prueba_propia = [prueba] if prueba and not frenos.comando_bloqueado(
+            prueba, self.raiz, self.cfg["rutas"]["prohibidas"]) else []
 
         def comandos_ahora() -> list[str]:
             # Sin [hecho] pruebas, se detectan en el worktree cada vez: en un repo nuevo tests/ aparece a media tarea.
@@ -407,7 +420,7 @@ class Orquestador:
                     git_ops.git(wt, "merge", "--abort", check=False)
                     return False
                 git_ops.commit(wt, f"loopeable {t['id']}: integra la rama de integración")
-            git_ops.integrar(self.raiz, rama_t, f"loopeable {t['id']}: {t['titulo']}")
+            git_ops.integrar(self.raiz, rama_t, f"loopeable {t['id']}: {t['titulo']}", self.protegidas, self.rama)
             return True
 
     # ───────────────────── el loop que orquesta ─────────────────────
@@ -424,7 +437,9 @@ class Orquestador:
             self.log(f"⏹️  {f}")
         propuestas = [t for t in self.est.todas() if t["estado"] == "PROPUESTA"]
         if propuestas:
-            texto = "\n".join(f"{t['id']} [{t['prioridad']}] {t['titulo']}" for t in propuestas)
+            texto = "\n".join(f"{t['id']} [{t['prioridad']}] {t['titulo']}" +
+                              (f"\n     prueba propia (se ejecutará): {t['prueba']}" if t["prueba"] else "")
+                              for t in propuestas)
             self.log(f"\n📝 Plan listo, esperando tu OK:\n{texto}\n\nApruébalo con: loopeable aprobar todas")
             avisos.avisar(self.cfg, "loopeable: plan listo para aprobar", texto)
             return self.resumen("esperando aprobación del plan")
@@ -486,6 +501,10 @@ class Orquestador:
 
     def entregar_pr(self) -> str:
         """Push de la rama de integración (nunca main) y PR en borrador. Es lo único que sale de tu máquina."""
+        try:
+            git_ops.exigir_intactas(self.raiz, self.protegidas)
+        except git_ops.ErrorGit as e:
+            return f"no subo nada: {e}"
         if not shutil.which("gh"):
             return "no hay `gh`: sube la rama a mano"
         try:

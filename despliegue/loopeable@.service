@@ -6,7 +6,7 @@
 #   systemctl status loopeable@security-suite
 # Las credenciales van en /srv/loopeable/secretos.env (chmod 600, dueño root):
 #   CLAUDE_CODE_OAUTH_TOKEN=...      (o ANTHROPIC_API_KEY=...)
-#   TELEGRAM_TOKEN=...               (opcional)
+#   LOOPEABLE_AVISOS_ENV=/srv/loopeable/avisos.env   (opcional; chmod 600, con TELEGRAM_TOKEN=...)
 [Unit]
 Description=loopeable en %i
 After=docker.service network-online.target

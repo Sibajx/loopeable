@@ -86,7 +86,7 @@ loopeable parar                   # alto limpio
 | `[hecho]` | `pruebas` (comandos que deben salir 0; vacío = se detectan), `criterios` globales | detectadas |
 | `[limites]` | `usd`, `usd_por_sesion`, `usd_minimo_sesion` (con menos saldo no arranca ninguna sesión; el restante se reparte entre los loops en curso), `horas`, `intentos`, `tareas`, `profundidad`, `paralelo`, `diff_chico_lineas` y `diff_chico_archivos` (un cambio hasta ese tamaño lo revisa el modelo del implementador sin subagentes) | 20 · 4 · 0.25 · 6 · 3 · 40 · 2 · 4 · 40 · 3 |
 | `[modelos]` | modelo por rol: planificador, implementador, revisor, integrador, vigía, subagentes | Opus para planear y revisar, Sonnet para implementar, Haiku para el vigía |
-| `[rutas]` | `prohibidas` (ni leer ni escribir: secretos), `solo_lectura` (CI, .git), `permitidas` | secretos · CI · .git |
+| `[rutas]` | `prohibidas` (ni leer ni escribir: secretos), `solo_lectura` (CI, .git; también vale para Bash), `permitidas` | secretos · CI · .git · `.claude/`, `.mcp.json`, `CLAUDE.md` y `loopeable.toml` siempre |
 | `[puertas]` | `aprobar_plan`, `seguridad` (ruta a security-suite), `bloquear_en` | sí · apagada · 🔴 |
 | `[entrega]` | `rama`, `pr` (push de la rama + PR en borrador con `gh`) | `loopeable/{fecha}` · no |
 | `[cuenta]` | `modo`: `plan` (tu suscripción; los "$" son equivalente de API) o `api` (la key de `api_env`, p. ej. los créditos de API de Max/Ultra/Team); `plan`: free/pro/max/ultra/team/enterprise, para sugerir límites y avisar (Free no incluye Claude Code: solo `api`) | `plan` |
@@ -103,7 +103,7 @@ Perfiles incluidos: `generico`, `python`, `security-suite`, `firmware-esp32`. Un
 | `loopeable parar` | Igual, a mano. |
 | Mismo error 2 veces | El vigía propone otro enfoque. 3 veces → 🧱 ESTANCADA. |
 | Ruta prohibida / solo lectura | La herramienta se niega con el motivo; el agente sigue o pide DECISIÓN. |
-| `git push/commit/reset`, `sudo`, despliegues, publicar paquetes, leer `.env`, `curl \| sh` | Negados siempre a los agentes. |
+| Cualquier `git`, `sudo`, despliegues, publicar paquetes, leer `.env` o variables con credenciales, leer fuera del proyecto, `curl \| sh` | Negados siempre a los agentes. loopeable además comprueba que `main` no se movió antes de integrar y de abrir el PR. |
 | Algo que solo tú decides | ❓ DECISIÓN: la tarea espera, las demás siguen, te llega un aviso. |
 
 **Corre los agentes dentro de Docker** si el proyecto tiene algo valioso cerca: los agentes tienen Bash.
