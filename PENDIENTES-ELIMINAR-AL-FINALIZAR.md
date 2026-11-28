@@ -18,7 +18,7 @@
 ## 1. Lo primero (no se pudo probar aquí)
 
 - [ ] **Corrida real con Claude.** Donde lo construí no había credenciales: nunca corrió contra el SDK de verdad.
-      Haz la "Primera prueba real" del README (tope de 1 USD) y revisa `.loopeable/sesiones/*.md`. Confirmar:
+      Haz la "Primera prueba real" del README (tope de 2 USD) y revisa `.loopeable/sesiones/*.md`. Confirmar:
   - [x] que `structured_output` llega lleno con `output_format` json_schema en cada rol (si llega `None`, el loop
         lo trata como error; ver `ia.py` y `orquestador.py`);
   - [x] que `permission_mode="dontAsk"` + `allowed_tools` deja trabajar al implementador sin pedir permisos, y
@@ -63,7 +63,7 @@ tope de presupuesto, reanudar. Bugs que salieron (el prompt completo para arregl
   - [ ] Si `[hecho] pruebas` tiene comandos explícitos, no se vuelven a detectar (el usuario manda).
   - [ ] La puerta de seguridad sigue usando el modelo `[modelos] revisor` sin importar el tamaño del diff.
   - [ ] Un archivo binario cuenta como archivo pero 0 líneas para el umbral de diff chico.
-  - [ ] Repetir la corrida real (/tmp/prueba-loop desde cero, tope 1 USD) para confirmar los 8 arreglos con Claude.
+  - [ ] Repetir la corrida real (/tmp/prueba-loop desde cero, tope 2 USD) para confirmar los 8 arreglos con Claude.
 - [x] Entrevista pregunta con qué se paga: `[cuenta] modo = "plan" | "api"` (key en archivo aparte, chmod 600).
 - [x] Entrevista pregunta el tipo de plan (`[cuenta] plan`): Free se niega con modo plan; avisos y sugerencias por plan.
 - [ ] Revisar de vez en cuando la tabla de planes de SKILL.md (qué incluye cada plan cambia; fuente: claude.com/pricing
