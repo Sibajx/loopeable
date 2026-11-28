@@ -97,8 +97,8 @@ y al primer intento; rama `loopeable-auto-28nov`. Revisor completo de T01: 0.72 
 - [ ] **¿El hook aplica a los subagentes?** (desde pendientes-1e el evento `negado` dice «rol › subagente X»: mirarlo en la próxima corrida real) Durante la sesión del revisor de T03 hubo un `negado` de `git` en Bash, y
       el revisor no tiene Bash: lo intentó un subagente o el propio revisor (con `dontAsk` el hook corre antes del
       permiso). Probable, no probado: falta registrar en el evento `negado` quién lo pidió.
-- [ ] `loopeable pruebas` muestra el comando detectado aunque `[hecho] pruebas` defina otro (el orquestador sí usa
-      el configurado).
+- [x] `loopeable pruebas` muestra el comando detectado aunque `[hecho] pruebas` defina otro (el orquestador sí usa
+      el configurado). → ahora muestra `[hecho] pruebas` si existe; el origen va a stderr
 - [x] Umbral de diff chico: 45 líneas en 6 archivos pagó revisión completa (0.72 USD). ¿Contar líneas sin
       PENDIENTES/README, o subir `diff_chico_archivos`? → `diff_chico_ignorar = ["*.md", "docs/**"]` (sin "/", solo raíz: los prompts en src/ sí cuentan)
 
