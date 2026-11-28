@@ -225,6 +225,27 @@ def test_maximum_budget_por_tope_de_sesion_si_cuenta_como_intento(tmp_path):
     assert estados(est) == {"sin-saldo": "FALLÓ"}
 
 
+def test_tope_como_processerror_es_freno_no_rechazo_del_revisor(tmp_path):
+    # corrida real del 27-nov: el revisor topó su parte del saldo y el CLI salió con ProcessError (el motivo solo en
+    # stderr). Se tomó como "revisor pidió: ProcessError…" y gastó un intento. Debe ser Freno.
+    r = repo(tmp_path, [{"titulo": "revisor-caro"}], paralelo=1, limites={"usd": 0.5})
+    res, est = correr(r)
+    assert estados(est) == {"revisor-caro": "PENDIENTE"}
+    assert "presupuesto" in res["motivo"] or "saldo" in res["motivo"]
+    assert est.tarea("T01")["intentos"] == 0
+    ev = est.eventos("T01", 200)
+    assert any(e["tipo"] == "freno" for e in ev)
+    assert not any(e["tipo"] == "rechazo" for e in ev)
+    assert "ProcessError" not in (est.tarea("T01")["nota"] or "")
+
+
+def test_es_tope_reconoce_las_dos_formas_del_sdk():
+    from loopeable.ia import es_tope
+    assert es_tope("ResultError: Claude Code returned an error result: Reached maximum budget ($0.25)")
+    assert es_tope("ProcessError: Command failed with exit code 1", "Budget limit reached ($0.33 of $0.25)")
+    assert not es_tope("ProcessError: Command failed with exit code 1", "otra cosa")
+
+
 def test_reanudar_reinicia_intentos_de_en_curso(tmp_path):
     r = repo(tmp_path, [{"titulo": "escribe a.txt uno"}])
     est = Estado(r / ".loopeable")

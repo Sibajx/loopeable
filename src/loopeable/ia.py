@@ -19,6 +19,15 @@ class Resultado:
     error: str = ""
     turnos: int = 0
     negadas: list = field(default_factory=list)
+    tope: bool = False                    # el SDK cortó la sesión por max_budget_usd
+
+
+def es_tope(*textos: str) -> bool:
+    """¿El texto (error o stderr del CLI) dice que la sesión topó su max_budget_usd? El SDK lo avisa de dos formas:
+    un ResultMessage con "Reached maximum budget", o el CLI sale con código 1 (ProcessError) y el motivo solo va a
+    stderr: "Budget limit reached ($0.33 of $0.25)"."""
+    t = " ".join(textos).lower()
+    return "maximum budget" in t or "budget limit reached" in t or "error_max_budget" in t
 
 
 @dataclass
@@ -54,7 +63,7 @@ def _ia_falsa():
     return _falsa
 
 
-def opciones_sdk(s: Sesion):
+def opciones_sdk(s: Sesion, stderr=None):
     from claude_agent_sdk import AgentDefinition, ClaudeAgentOptions, HookMatcher
 
     herramientas = list(s.herramientas)
@@ -77,6 +86,7 @@ def opciones_sdk(s: Sesion):
         max_budget_usd=s.usd_max,
         max_turns=s.turnos_max,
         env=dict(s.env),
+        stderr=stderr,
         setting_sources=["project"],      # respeta CLAUDE.md y .claude/ del proyecto, no tu config personal
     )
     return opciones
@@ -86,12 +96,14 @@ async def correr(s: Sesion) -> Resultado:
     falsa = _ia_falsa()
     if falsa:
         d = falsa.responder(s.rol, s.prompt, s.cwd, s.esquema, sesion=s) or {}
+        error = d.get("error", "")
         return Resultado(texto=d.get("texto", ""), datos=d.get("datos"), costo=d.get("costo", 0.0),
-                         error=d.get("error", ""))
+                         error=error, tope=es_tope(error, d.get("stderr", "")))
 
     from claude_agent_sdk import ResultMessage, query
 
-    opciones = opciones_sdk(s)
+    salida_err: list[str] = []            # stderr del CLI: ahí viene el motivo cuando sale con código 1
+    opciones = opciones_sdk(s, stderr=lambda linea: salida_err.append(linea))
     r = Resultado()
     try:
         async for msg in query(prompt=s.prompt, options=opciones):
@@ -103,6 +115,11 @@ async def correr(s: Sesion) -> Resultado:
                 r.negadas = msg.permission_denials or []
                 if msg.is_error:
                     r.error = "; ".join(msg.errors or []) or msg.subtype
+                    r.tope = msg.subtype == "error_max_budget_usd"
     except Exception as e:  # el CLI se cayó, límite de uso, red…
-        r.error = f"{type(e).__name__}: {e}"
+        r.error = "; ".join(x for x in (r.error, f"{type(e).__name__}: {e}") if x)
+    cola = "\n".join(l.rstrip() for l in salida_err[-5:])
+    if r.error and cola:
+        r.error += f"\n{cola}"
+    r.tope = r.tope or es_tope(r.error, cola)
     return r
