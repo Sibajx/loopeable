@@ -304,7 +304,7 @@ class Orquestador:
                     continue
 
                 # Revisión proporcional: un cambio chico no paga Opus + 3 subagentes.
-                lineas, archivos = git_ops.tamano_diff(wt, base)
+                lineas, archivos = git_ops.tamano_diff(wt, base, self.L["diff_chico_ignorar"])
                 chico = lineas <= self.L["diff_chico_lineas"] and archivos <= self.L["diff_chico_archivos"]
                 rv = await self.sesion("revisor", roles.plantilla(
                     "revisor", perfil_contexto=self.perfil_ctx, perfil_revision=self.perfil_rev or "(nada extra)",

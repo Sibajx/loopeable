@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -267,6 +268,23 @@ def test_es_tope_reconoce_las_dos_formas_del_sdk():
     assert es_tope("ResultError: Claude Code returned an error result: Reached maximum budget ($0.25)")
     assert es_tope("ProcessError: Command failed with exit code 1", "Budget limit reached ($0.33 of $0.25)")
     assert not es_tope("ProcessError: Command failed with exit code 1", "otra cosa")
+
+
+def test_tamano_diff_no_cuenta_docs_de_la_raiz(tmp_path):
+    # corrida sobre sí mismo: 45 líneas en 6 archivos (3 eran README/PENDIENTES) pagó revisión completa
+    r = repo(tmp_path, [])
+    shutil.rmtree(r / ".loopeable")                                     # en una corrida real va en info/exclude
+    base = sh(r, "git", "rev-parse", "HEAD").strip()
+    (r / "README.md").write_text("# demo\n" + "doc\n" * 30)
+    (r / "PENDIENTES.md").write_text("x\n" * 20)
+    (r / "docs").mkdir()
+    (r / "docs" / "guia.md").write_text("g\n" * 10)
+    (r / "src").mkdir()
+    (r / "src" / "prompt.md").write_text("p\n" * 5)                     # un prompt en src/ sí cuenta
+    (r / "a.py").write_text("x = 1\n")
+    ignorar = config.DEFECTO["limites"]["diff_chico_ignorar"]
+    assert git_ops.tamano_diff(r, base, ignorar) == (6, 2)
+    assert git_ops.tamano_diff(r, base) == (66, 5)
 
 
 def test_reanudar_reinicia_intentos_de_en_curso(tmp_path):

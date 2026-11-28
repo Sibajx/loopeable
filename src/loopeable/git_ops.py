@@ -1,6 +1,7 @@
 """Git: rama de integración, un worktree por loop de tarea, commits y merges."""
 from __future__ import annotations
 
+import fnmatch
 import subprocess
 from pathlib import Path
 
@@ -94,12 +95,20 @@ def diff(wt: Path, base: str) -> str:
     return git(wt, "diff", "--cached", base, "--stat", "--patch", "--no-color")
 
 
-def tamano_diff(wt: Path, base: str) -> tuple[int, int]:
-    """(líneas agregadas + quitadas, archivos) del cambio contra base. Los binarios cuentan como archivo."""
+def _ignorado(ruta: str, patrones: list[str]) -> bool:
+    """Un patrón sin "/" solo vale en la raíz (`*.md` es README.md, no src/agentes/x.md); con "/", la ruta entera."""
+    return any(fnmatch.fnmatch(ruta, p) and ("/" in p or "/" not in ruta) for p in patrones)
+
+
+def tamano_diff(wt: Path, base: str, ignorar: list[str] | None = None) -> tuple[int, int]:
+    """(líneas agregadas + quitadas, archivos) del cambio contra base, sin contar las rutas de `ignorar` (docs).
+    Los binarios cuentan como archivo."""
     git(wt, "add", "-A")
     lineas = archivos = 0
     for fila in git(wt, "diff", "--cached", "--numstat", base).splitlines():
-        mas, menos, _ = fila.split("\t", 2)
+        mas, menos, ruta = fila.split("\t", 2)
+        if _ignorado(ruta, ignorar or []):
+            continue
         archivos += 1
         lineas += (int(mas) if mas.isdigit() else 0) + (int(menos) if menos.isdigit() else 0)
     return lineas, archivos

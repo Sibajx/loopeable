@@ -32,6 +32,8 @@ DEFECTO: dict = {
         # sin subagentes; uno más grande, [modelos] revisor + 3 subagentes en paralelo.
         "diff_chico_lineas": 40,
         "diff_chico_archivos": 3,
+        # Rutas que no cuentan para ese tamaño (docs: no necesitan 3 subagentes). Sin "/", solo en la raíz.
+        "diff_chico_ignorar": ["*.md", "docs/**"],
     },
     "modelos": {                # vacío = el modelo por defecto de tu Claude Code
         "planificador": "claude-opus-5-5",
@@ -175,6 +177,7 @@ profundidad = 2
 paralelo = 4
 diff_chico_lineas = 40         # hasta 40 líneas y 3 archivos: revisión barata (sin subagentes)
 diff_chico_archivos = 3
+diff_chico_ignorar = ["*.md", "docs/**"]   # no cuentan para ese tamaño (sin "/", solo en la raíz)
 
 [puertas]
 aprobar_plan = true
