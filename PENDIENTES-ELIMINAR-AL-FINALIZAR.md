@@ -89,6 +89,19 @@ Costos: planificador 0.27 · implementador 0.14–0.15 · revisor chico 0.12 · 
       que `total_cost_usd` incluya a los subagentes (0.334 > 0.25 lo sugiere).
 - [ ] T01 quedó PENDIENTE: `loopeable correr` en /tmp/prueba-loop-2 con más saldo la retoma.
 
+## 1e. loopeable sobre sí mismo 2026-11-28 (clon en /tmp/loopeable-auto: 4/4 tareas, 2.26/3 USD)
+
+Las 3 decisiones de 1d las implementó loopeable sobre su propio repo (más una subtarea que creó T02), sin rechazos
+y al primer intento; rama `loopeable-auto-28nov`. Revisor completo de T01: 0.72 USD (45 líneas, 6 archivos).
+
+- [ ] **¿El hook aplica a los subagentes?** Durante la sesión del revisor de T03 hubo un `negado` de `git` en Bash, y
+      el revisor no tiene Bash: lo intentó un subagente o el propio revisor (con `dontAsk` el hook corre antes del
+      permiso). Probable, no probado: falta registrar en el evento `negado` quién lo pidió.
+- [ ] `loopeable pruebas` muestra el comando detectado aunque `[hecho] pruebas` defina otro (el orquestador sí usa
+      el configurado).
+- [ ] Umbral de diff chico: 45 líneas en 6 archivos pagó revisión completa (0.72 USD). ¿Contar líneas sin
+      PENDIENTES/README, o subir `diff_chico_archivos`?
+
 ## 1c. Auditoría de seguridad 2026-11-26
 
 - [x] Hallazgos ALTA arreglados (rama `seguridad-altas`, un commit y una prueba cada uno):
