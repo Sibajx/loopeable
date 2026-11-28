@@ -78,9 +78,9 @@ Costos: planificador 0.27 · implementador 0.14–0.15 · revisor chico 0.12 · 
 - [x] **Bug: el tope de presupuesto también llega como `ProcessError`.** El revisor completo de T01 tenía 0.25 USD,
       gastó 0.33 y el CLI salió con código 1; el motivo («Budget limit reached») solo fue a stderr. Se tomó como
       «revisor pidió: ProcessError…». Arreglado en f141b6d (rama `corrida-real-2`): se lee stderr y `Resultado.tope`.
-- [ ] **`max_budget_usd` no es duro:** la sesión pasó su tope ~30 % (0.33 de 0.25) por los subagentes en segundo
+- [x] **`max_budget_usd` no es duro:** la sesión pasó su tope ~30 % (0.33 de 0.25) por los subagentes en segundo
       plano. Con N loops el sobregasto real puede ser mayor que (N−1)×mínimo (A5). ¿Reservar un margen (p. ej.
-      repartir 0.75 × restante) o subir `usd_minimo_sesion`?
+      repartir 0.75 × restante) o subir `usd_minimo_sesion`? → margen_saldo = 0.75
 - [ ] **1 USD no alcanza para la "Primera prueba real"** del README: planificador + 2 tareas mínimas ≈ 1.1 USD con
       revisión completa. Subir el ejemplo a 2 USD o usar `paralelo = 1`.
 - [ ] **Los agentes intentan `git status/diff`** y el hook los niega: no rompe nada pero gasta turnos. Decir en el
