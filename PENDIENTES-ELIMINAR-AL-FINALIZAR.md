@@ -18,7 +18,7 @@
 ## 1. Lo primero (no se pudo probar aquí)
 
 - [ ] **Corrida real con Claude.** Donde lo construí no había credenciales: nunca corrió contra el SDK de verdad.
-      Haz la "Primera prueba real" del README (tope de 1 USD) y revisa `.loopeable/sesiones/*.md`. Confirmar:
+      Haz la "Primera prueba real" del README (tope de 2 USD) y revisa `.loopeable/sesiones/*.md`. Confirmar:
   - [x] que `structured_output` llega lleno con `output_format` json_schema en cada rol (si llega `None`, el loop
         lo trata como error; ver `ia.py` y `orquestador.py`);
   - [x] que `permission_mode="dontAsk"` + `allowed_tools` deja trabajar al implementador sin pedir permisos, y
@@ -63,7 +63,7 @@ tope de presupuesto, reanudar. Bugs que salieron (el prompt completo para arregl
   - [ ] Si `[hecho] pruebas` tiene comandos explícitos, no se vuelven a detectar (el usuario manda).
   - [ ] La puerta de seguridad sigue usando el modelo `[modelos] revisor` sin importar el tamaño del diff.
   - [ ] Un archivo binario cuenta como archivo pero 0 líneas para el umbral de diff chico.
-  - [ ] Repetir la corrida real (/tmp/prueba-loop desde cero, tope 1 USD) para confirmar los 8 arreglos con Claude.
+  - [ ] Repetir la corrida real (/tmp/prueba-loop desde cero, tope 2 USD) para confirmar los 8 arreglos con Claude.
 - [x] Entrevista pregunta con qué se paga: `[cuenta] modo = "plan" | "api"` (key en archivo aparte, chmod 600).
 - [x] Entrevista pregunta el tipo de plan (`[cuenta] plan`): Free se niega con modo plan; avisos y sugerencias por plan.
 - [ ] Revisar de vez en cuando la tabla de planes de SKILL.md (qué incluye cada plan cambia; fuente: claude.com/pricing
@@ -78,16 +78,29 @@ Costos: planificador 0.27 · implementador 0.14–0.15 · revisor chico 0.12 · 
 - [x] **Bug: el tope de presupuesto también llega como `ProcessError`.** El revisor completo de T01 tenía 0.25 USD,
       gastó 0.33 y el CLI salió con código 1; el motivo («Budget limit reached») solo fue a stderr. Se tomó como
       «revisor pidió: ProcessError…». Arreglado en f141b6d (rama `corrida-real-2`): se lee stderr y `Resultado.tope`.
-- [ ] **`max_budget_usd` no es duro:** la sesión pasó su tope ~30 % (0.33 de 0.25) por los subagentes en segundo
+- [x] **`max_budget_usd` no es duro:** la sesión pasó su tope ~30 % (0.33 de 0.25) por los subagentes en segundo
       plano. Con N loops el sobregasto real puede ser mayor que (N−1)×mínimo (A5). ¿Reservar un margen (p. ej.
-      repartir 0.75 × restante) o subir `usd_minimo_sesion`?
-- [ ] **1 USD no alcanza para la "Primera prueba real"** del README: planificador + 2 tareas mínimas ≈ 1.1 USD con
-      revisión completa. Subir el ejemplo a 2 USD o usar `paralelo = 1`.
-- [ ] **Los agentes intentan `git status/diff`** y el hook los niega: no rompe nada pero gasta turnos. Decir en el
+      repartir 0.75 × restante) o subir `usd_minimo_sesion`? → margen_saldo = 0.75
+- [x] **1 USD no alcanza para la "Primera prueba real"** del README: planificador + 2 tareas mínimas ≈ 1.1 USD con
+      revisión completa. Subir el ejemplo a 2 USD o usar `paralelo = 1`. → ejemplo a 2 USD
+- [x] **Los agentes intentan `git status/diff`** y el hook los niega: no rompe nada pero gasta turnos. Decir en el
       prompt del implementador que git lo maneja loopeable (el freno sigue en código).
 - [ ] Sin confirmar todavía: que el hook aplique a los subagentes (el revisor completo se cortó antes de verlo) y
       que `total_cost_usd` incluya a los subagentes (0.334 > 0.25 lo sugiere).
 - [ ] T01 quedó PENDIENTE: `loopeable correr` en /tmp/prueba-loop-2 con más saldo la retoma.
+
+## 1e. loopeable sobre sí mismo 2026-11-28 (clon en /tmp/loopeable-auto: 4/4 tareas, 2.26/3 USD)
+
+Las 3 decisiones de 1d las implementó loopeable sobre su propio repo (más una subtarea que creó T02), sin rechazos
+y al primer intento; rama `loopeable-auto-28nov`. Revisor completo de T01: 0.72 USD (45 líneas, 6 archivos).
+
+- [ ] **¿El hook aplica a los subagentes?** Durante la sesión del revisor de T03 hubo un `negado` de `git` en Bash, y
+      el revisor no tiene Bash: lo intentó un subagente o el propio revisor (con `dontAsk` el hook corre antes del
+      permiso). Probable, no probado: falta registrar en el evento `negado` quién lo pidió.
+- [ ] `loopeable pruebas` muestra el comando detectado aunque `[hecho] pruebas` defina otro (el orquestador sí usa
+      el configurado).
+- [ ] Umbral de diff chico: 45 líneas en 6 archivos pagó revisión completa (0.72 USD). ¿Contar líneas sin
+      PENDIENTES/README, o subir `diff_chico_archivos`?
 
 ## 1c. Auditoría de seguridad 2026-11-26
 
