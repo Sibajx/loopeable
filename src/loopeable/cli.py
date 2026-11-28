@@ -10,7 +10,7 @@
   loopeable responder T03 "..."   contesta una DECISIÓN; la tarea vuelve a la cola
   loopeable reintentar [T03,...]  vuelve a la cola las FALLÓ / ESTANCADA / NO_PUDE
   loopeable parar                 termina limpio después de la sesión en curso
-  loopeable pruebas               muestra el comando de pruebas detectado
+  loopeable pruebas               muestra el comando de pruebas que usará una corrida
 """
 from __future__ import annotations
 
@@ -69,8 +69,20 @@ def main(argv=None):
         return
 
     if a.cmd == "pruebas":
+        # Lo mismo que usará una corrida (orquestador.comandos_ahora): [hecho] pruebas manda; si no hay, se detecta.
         from .verificar import detectar_pruebas
-        print("\n".join(detectar_pruebas(raiz)))
+        if not raiz.is_dir():
+            sys.exit(f"{raiz} no existe o no es una carpeta.")
+        try:
+            cmds = config.cargar(raiz)["hecho"]["pruebas"]
+            origen = "de [hecho] pruebas en loopeable.toml" if cmds else "detectado"
+        except FileNotFoundError:  # sin loopeable.toml solo queda lo detectado
+            cmds, origen = [], "detectado (no hay loopeable.toml: una corrida no arrancaría)"
+        except ValueError as e:     # un toml inválido no se ignora: la corrida tampoco arrancaría
+            sys.exit(str(e))
+        cmds = cmds or detectar_pruebas(raiz)
+        print(f"# {origen}", file=sys.stderr)  # a stderr: stdout queda limpio para copiarlo
+        print("\n".join(cmds))
         return
 
     est = Estado(raiz / ".loopeable")

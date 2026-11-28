@@ -156,13 +156,16 @@ def decidir(herramienta: str, entrada: dict, raiz: Path, rutas: dict) -> str | N
 
 
 def hook(raiz: Path, rutas: dict, al_negar=None):
-    """Crea el callback PreToolUse para el Agent SDK."""
+    """Crea el callback PreToolUse para el Agent SDK. `al_negar(herramienta, motivo, quien)`: quien es el tipo de
+    subagente que pidió la acción (el SDK manda agent_id/agent_type solo dentro de un subagente) o "" si fue el
+    agente principal de la sesión."""
     async def pre_tool_use(entrada, tool_use_id, contexto):
         motivo = decidir(entrada.get("tool_name", ""), entrada.get("tool_input", {}) or {}, raiz, rutas)
         if not motivo:
             return {}
         if al_negar:
-            al_negar(entrada.get("tool_name", ""), motivo)
+            quien = (entrada.get("agent_type") or "subagente") if entrada.get("agent_id") else ""
+            al_negar(entrada.get("tool_name", ""), motivo, quien)
         return {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny",
                                        "permissionDecisionReason": f"loopeable lo bloquea: {motivo}"}}
     return pre_tool_use

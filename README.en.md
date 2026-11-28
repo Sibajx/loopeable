@@ -30,7 +30,8 @@ ORCHESTRATOR (code, not the model: limits, brakes, git, state)
 - **Budget-aware.** `[limites] usd_minimo_sesion` (0.25): no session starts with less left than that, and only
   `margen_saldo` (0.75) of what's left is split across the running loops, since the SDK's per-session cap isn't
   hard (background subagents keep spending). Diffs up to `diff_chico_lineas` (40) lines and `diff_chico_archivos` (3)
-  files get a cheap review (implementer's model, no subagents). Every rejected attempt is logged with its reason
+  files get a cheap review (implementer's model, no subagents); root Markdown and `docs/**` don't count
+  (`diff_chico_ignorar`). Every rejected attempt is logged with its reason
   (`loopeable ver T03`, web board).
 
 ## Install & use

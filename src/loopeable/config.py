@@ -32,6 +32,8 @@ DEFECTO: dict = {
         # sin subagentes; uno más grande, [modelos] revisor + 3 subagentes en paralelo.
         "diff_chico_lineas": 40,
         "diff_chico_archivos": 3,
+        # Rutas que no cuentan para ese tamaño (docs: no necesitan 3 subagentes). Sin "/", solo en la raíz.
+        "diff_chico_ignorar": ["*.md", "docs/**"],
     },
     "modelos": {                # vacío = el modelo por defecto de tu Claude Code
         "planificador": "claude-opus-5-5",
@@ -91,7 +93,18 @@ def cargar(raiz: Path) -> dict:
     ruta = raiz / ARCHIVO
     if not ruta.exists():
         raise FileNotFoundError(f"No hay {ARCHIVO} en {raiz}. Créalo con /loopeable o `loopeable iniciar`.")
-    cfg = _mezclar(DEFECTO, tomllib.loads(ruta.read_text()))
+    try:
+        cfg = _mezclar(DEFECTO, tomllib.loads(ruta.read_text()))
+    except (tomllib.TOMLDecodeError, TypeError, KeyError) as e:   # sintaxis, o una tabla donde va un valor
+        raise ValueError(f"{ARCHIVO}: {e}") from None
+    if not isinstance(cfg["objetivo"], str):
+        raise ValueError(f"{ARCHIVO}: `objetivo` debe ser texto.")
+    if not isinstance(cfg["hecho"], dict):
+        raise ValueError(f"{ARCHIVO}: [hecho] debe ser una tabla.")
+    pruebas = cfg["hecho"]["pruebas"]
+    if not isinstance(pruebas, list) or not all(isinstance(c, str) and c.strip() for c in pruebas):
+        raise ValueError(f"{ARCHIVO}: [hecho] pruebas debe ser una lista de comandos no vacíos, "
+                         'p. ej. pruebas = ["uv run pytest -q"].')
     if not cfg["objetivo"].strip():
         raise ValueError(f"{ARCHIVO}: falta `objetivo`.")
     if cfg["cuenta"]["modo"] not in ("plan", "api"):
@@ -175,6 +188,7 @@ profundidad = 2
 paralelo = 4
 diff_chico_lineas = 40         # hasta 40 líneas y 3 archivos: revisión barata (sin subagentes)
 diff_chico_archivos = 3
+diff_chico_ignorar = ["*.md", "docs/**"]   # no cuentan para ese tamaño (sin "/", solo en la raíz)
 
 [puertas]
 aprobar_plan = true

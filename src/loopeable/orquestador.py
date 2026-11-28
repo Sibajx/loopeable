@@ -96,7 +96,8 @@ class Orquestador:
             herramientas=herramientas, editar=editar, esquema=esquema,
             subagentes=roles.subagentes(subagentes, self.M.get("subagentes", ""), herramientas) if subagentes else None,
             plugins=plugins or [],
-            hook_pre=frenos.hook(cwd, self.cfg["rutas"], lambda h, m: self.est.evento(tid, "negado", f"{h}: {m}")),
+            hook_pre=frenos.hook(cwd, self.cfg["rutas"], lambda h, m, quien: self.est.evento(
+                tid, "negado", f"{rol}{' › subagente ' + quien if quien else ''} · {h}: {m}")),
             usd_max=usd_max, turnos_max=self.L["turnos_por_sesion"],
             env=self.env)
         r = await ia.correr(s)
@@ -303,7 +304,7 @@ class Orquestador:
                     continue
 
                 # Revisión proporcional: un cambio chico no paga Opus + 3 subagentes.
-                lineas, archivos = git_ops.tamano_diff(wt, base)
+                lineas, archivos = git_ops.tamano_diff(wt, base, self.L["diff_chico_ignorar"])
                 chico = lineas <= self.L["diff_chico_lineas"] and archivos <= self.L["diff_chico_archivos"]
                 rv = await self.sesion("revisor", roles.plantilla(
                     "revisor", perfil_contexto=self.perfil_ctx, perfil_revision=self.perfil_rev or "(nada extra)",

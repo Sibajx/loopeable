@@ -94,13 +94,25 @@ Costos: planificador 0.27 · implementador 0.14–0.15 · revisor chico 0.12 · 
 Las 3 decisiones de 1d las implementó loopeable sobre su propio repo (más una subtarea que creó T02), sin rechazos
 y al primer intento; rama `loopeable-auto-28nov`. Revisor completo de T01: 0.72 USD (45 líneas, 6 archivos).
 
-- [ ] **¿El hook aplica a los subagentes?** Durante la sesión del revisor de T03 hubo un `negado` de `git` en Bash, y
+- [ ] **¿El hook aplica a los subagentes?** (desde pendientes-1e el evento `negado` dice «rol › subagente X»: mirarlo en la próxima corrida real) Durante la sesión del revisor de T03 hubo un `negado` de `git` en Bash, y
       el revisor no tiene Bash: lo intentó un subagente o el propio revisor (con `dontAsk` el hook corre antes del
       permiso). Probable, no probado: falta registrar en el evento `negado` quién lo pidió.
-- [ ] `loopeable pruebas` muestra el comando detectado aunque `[hecho] pruebas` defina otro (el orquestador sí usa
-      el configurado).
-- [ ] Umbral de diff chico: 45 líneas en 6 archivos pagó revisión completa (0.72 USD). ¿Contar líneas sin
-      PENDIENTES/README, o subir `diff_chico_archivos`?
+- [x] `loopeable pruebas` muestra el comando detectado aunque `[hecho] pruebas` defina otro (el orquestador sí usa
+      el configurado). → ahora muestra `[hecho] pruebas` si existe; el origen va a stderr
+- [x] Umbral de diff chico: 45 líneas en 6 archivos pagó revisión completa (0.72 USD). ¿Contar líneas sin
+      PENDIENTES/README, o subir `diff_chico_archivos`? → `diff_chico_ignorar = ["*.md", "docs/**"]` (sin "/", solo raíz: los prompts en src/ sí cuentan)
+
+### Prueba adversarial de `loopeable pruebas` (subagente, 36 casos)
+
+Arreglado: un toml inválido ya no se ignora (sale con mensaje), `config.cargar` valida tipos de `objetivo`,
+`[hecho]` y `pruebas` (también protege la corrida) y rechaza comandos vacíos; `-C` a una carpeta que no existe avisa.
+Quedan, todos de `detectar_pruebas` (afectan también a la corrida):
+- [ ] El CLI detecta en la carpeta y la corrida en el worktree (checkout limpio de HEAD): con `uv.lock` en
+      .gitignore el CLI dice `uv run pytest -q` y la corrida usa `python3 -m pytest -q`. Detectar sobre `git ls-files`.
+- [ ] `package.json` malformado (`[]`, `"scripts": null`, JSON inválido) o un Makefile no UTF-8 → traceback.
+- [ ] El chequeo detectado `… || exit 1; done` cierra una terminal interactiva si se pega; usar `|| e=1; done; [ -z "$e" ]`.
+- [ ] `bash tests/probar-*.sh` sin `shlex.quote`: un nombre con espacio rompe, uno con `$(…)` se ejecuta.
+- [ ] Fuera de un repo git, `loopeable pruebas` no avisa que una corrida no arrancaría.
 
 ## 1c. Auditoría de seguridad 2026-11-26
 

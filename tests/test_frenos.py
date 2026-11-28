@@ -46,6 +46,17 @@ def test_hook_devuelve_deny():
     assert asyncio.run(h({"tool_name": "Bash", "tool_input": {"command": "ls"}}, None, {})) == {}
 
 
+def test_hook_dice_quien_pidio_la_accion():
+    # para saber si el hook frena también a los subagentes: el SDK manda agent_id/agent_type solo dentro de uno
+    negadas = []
+    h = frenos.hook(Path("/proy"), RUTAS, lambda herr, motivo, quien: negadas.append((herr, quien)))
+    git = {"tool_name": "Bash", "tool_input": {"command": "git status"}}
+    asyncio.run(h(git, None, {}))
+    asyncio.run(h(git | {"agent_id": "a1", "agent_type": "revisor-seguridad"}, None, {}))
+    asyncio.run(h(git | {"agent_id": "a2"}, None, {}))
+    assert negadas == [("Bash", ""), ("Bash", "revisor-seguridad"), ("Bash", "subagente")]
+
+
 def test_lectura_solo_dentro_del_proyecto(tmp_path):
     raiz = tmp_path / "proy"
     raiz.mkdir()
