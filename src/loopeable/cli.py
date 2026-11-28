@@ -71,11 +71,15 @@ def main(argv=None):
     if a.cmd == "pruebas":
         # Lo mismo que usará una corrida (orquestador.comandos_ahora): [hecho] pruebas manda; si no hay, se detecta.
         from .verificar import detectar_pruebas
+        if not raiz.is_dir():
+            sys.exit(f"{raiz} no existe o no es una carpeta.")
         try:
             cmds = config.cargar(raiz)["hecho"]["pruebas"]
-        except (FileNotFoundError, ValueError):  # sin loopeable.toml (o inválido) solo queda lo detectado
-            cmds = []
-        origen = "de [hecho] pruebas en loopeable.toml" if cmds else "detectado"
+            origen = "de [hecho] pruebas en loopeable.toml" if cmds else "detectado"
+        except FileNotFoundError:  # sin loopeable.toml solo queda lo detectado
+            cmds, origen = [], "detectado (no hay loopeable.toml: una corrida no arrancaría)"
+        except ValueError as e:     # un toml inválido no se ignora: la corrida tampoco arrancaría
+            sys.exit(str(e))
         cmds = cmds or detectar_pruebas(raiz)
         print(f"# {origen}", file=sys.stderr)  # a stderr: stdout queda limpio para copiarlo
         print("\n".join(cmds))

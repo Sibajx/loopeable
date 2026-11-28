@@ -1,4 +1,6 @@
 """Pruebas del CLI que no necesitan IA."""
+import pytest
+
 from loopeable.cli import main
 from loopeable.verificar import detectar_pruebas
 
@@ -28,3 +30,25 @@ def test_pruebas_sin_loopeable_toml_muestra_lo_detectado(tmp_path, capsys):
     (tmp_path / "Cargo.toml").write_text("")
     main(["-C", str(tmp_path), "pruebas"])
     assert capsys.readouterr().out == "\n".join(detectar_pruebas(tmp_path)) + "\n"
+
+
+@pytest.mark.parametrize("toml", [
+    '[hecho]\npruebas = ["make check"]\n',                       # sin objetivo
+    'objetivo = "x"\n[hecho]\npruebas = "uv run pytest -q"\n',   # cadena en vez de lista
+    'objetivo = "x"\n[hecho]\npruebas = [1]\n',
+    'objetivo = "x"\n[hecho]\npruebas = [""]\n',                 # apagaría las pruebas sin avisar
+    'objetivo = "x"\nhecho = "pytest"\n',
+    'objetivo = 5\n',
+    'objetivo = "x"\n[hecho\n',                                   # sintaxis
+])
+def test_pruebas_con_toml_invalido_sale_con_mensaje_claro(tmp_path, toml):
+    (tmp_path / "loopeable.toml").write_text(toml)
+    with pytest.raises(SystemExit) as e:
+        main(["-C", str(tmp_path), "pruebas"])
+    assert "loopeable.toml" in str(e.value.code)
+
+
+def test_pruebas_con_carpeta_inexistente(tmp_path):
+    with pytest.raises(SystemExit) as e:
+        main(["-C", str(tmp_path / "no-existe"), "pruebas"])
+    assert "no existe" in str(e.value.code)

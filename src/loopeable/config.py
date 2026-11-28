@@ -93,7 +93,18 @@ def cargar(raiz: Path) -> dict:
     ruta = raiz / ARCHIVO
     if not ruta.exists():
         raise FileNotFoundError(f"No hay {ARCHIVO} en {raiz}. Créalo con /loopeable o `loopeable iniciar`.")
-    cfg = _mezclar(DEFECTO, tomllib.loads(ruta.read_text()))
+    try:
+        cfg = _mezclar(DEFECTO, tomllib.loads(ruta.read_text()))
+    except (tomllib.TOMLDecodeError, TypeError, KeyError) as e:   # sintaxis, o una tabla donde va un valor
+        raise ValueError(f"{ARCHIVO}: {e}") from None
+    if not isinstance(cfg["objetivo"], str):
+        raise ValueError(f"{ARCHIVO}: `objetivo` debe ser texto.")
+    if not isinstance(cfg["hecho"], dict):
+        raise ValueError(f"{ARCHIVO}: [hecho] debe ser una tabla.")
+    pruebas = cfg["hecho"]["pruebas"]
+    if not isinstance(pruebas, list) or not all(isinstance(c, str) and c.strip() for c in pruebas):
+        raise ValueError(f"{ARCHIVO}: [hecho] pruebas debe ser una lista de comandos no vacíos, "
+                         'p. ej. pruebas = ["uv run pytest -q"].')
     if not cfg["objetivo"].strip():
         raise ValueError(f"{ARCHIVO}: falta `objetivo`.")
     if cfg["cuenta"]["modo"] not in ("plan", "api"):
