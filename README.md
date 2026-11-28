@@ -120,11 +120,11 @@ Para dejarlo 24/7 en un server con systemd y avisos al celular: [`despliegue/SER
 `owasp/` como solo lectura) y una bandeja con 6 mejoras: webhooks de pago falsos, inyección al chatbot, respaldos
 inmutables, logs, fuerza bruta de códigos cortos y un modo rápido para apps hechas con IA.
 
-## Primera prueba real (5 minutos, centavos)
+## Primera prueba real (5 minutos, ~2 USD)
 
 ```bash
 mkdir /tmp/prueba-loop && cd /tmp/prueba-loop && git init -q
-printf 'objetivo = "Una calculadora mínima en Python con pruebas"\nperfil = "python"\n[limites]\nusd = 1\n[puertas]\naprobar_plan = false\n' > loopeable.toml
+printf 'objetivo = "Una calculadora mínima en Python con pruebas"\nperfil = "python"\n[limites]\nusd = 2\n[puertas]\naprobar_plan = false\n' > loopeable.toml
 git add -A && git commit -qm inicio            # primero el commit: .loopeable/ no debe entrar a git
 mkdir -p .loopeable/bandeja && echo "- calc.py con suma y resta, y tests/test_calc.py con pytest" > .loopeable/bandeja/ideas.md
 loopeable correr && git log --oneline --all
