@@ -111,7 +111,7 @@ class Orquestador:
                         (f" · error: {r.error}" if r.error else ""))
         # El SDK cortó la sesión por max_budget_usd. Si el tope venía del saldo de la corrida (no de usd_por_sesion),
         # es el presupuesto global el que se acabó: Freno, no un intento fallido.
-        if "maximum budget" in r.error.lower() and usd_max < self.L["usd_por_sesion"]:
+        if r.tope and usd_max < self.L["usd_por_sesion"]:
             raise Freno(f"la sesión de {rol} topó su parte del saldo ({usd_max:.2f} USD)")
         return r
 

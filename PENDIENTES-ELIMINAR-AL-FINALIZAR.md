@@ -19,13 +19,13 @@
 
 - [ ] **Corrida real con Claude.** Donde lo construí no había credenciales: nunca corrió contra el SDK de verdad.
       Haz la "Primera prueba real" del README (tope de 1 USD) y revisa `.loopeable/sesiones/*.md`. Confirmar:
-  - [ ] que `structured_output` llega lleno con `output_format` json_schema en cada rol (si llega `None`, el loop
+  - [x] que `structured_output` llega lleno con `output_format` json_schema en cada rol (si llega `None`, el loop
         lo trata como error; ver `ia.py` y `orquestador.py`);
-  - [ ] que `permission_mode="dontAsk"` + `allowed_tools` deja trabajar al implementador sin pedir permisos, y
+  - [x] que `permission_mode="dontAsk"` + `allowed_tools` deja trabajar al implementador sin pedir permisos, y
         que los subagentes (herramienta `Task`) sí se lanzan;
-  - [ ] que el hook de `frenos.py` realmente niega (prueba pidiéndole a un agente `git push` o leer `.env`);
+  - [x] que el hook de `frenos.py` realmente niega (prueba pidiéndole a un agente `git push` o leer `.env`);
   - [ ] que `max_budget_usd` corta la sesión y que `total_cost_usd` incluye lo gastado por los subagentes;
-  - [ ] que los nombres de modelo de `[modelos]` en `config.py` son válidos para tu cuenta.
+  - [x] que los nombres de modelo de `[modelos]` en `config.py` son válidos para tu cuenta.
 - [ ] **Construir la imagen de Docker** (aquí no había daemon): `docker compose -f docker/compose.yml build` y una
       corrida con `LOOPEABLE_FIREWALL=1`. Revisar `entrada.sh`: `usermod/groupmod` cuando el UID ya existe,
       `setpriv`, y que el firewall no bloquee algo que el SDK necesita (agregar dominios en
@@ -68,6 +68,26 @@ tope de presupuesto, reanudar. Bugs que salieron (el prompt completo para arregl
 - [x] Entrevista pregunta el tipo de plan (`[cuenta] plan`): Free se niega con modo plan; avisos y sugerencias por plan.
 - [ ] Revisar de vez en cuando la tabla de planes de SKILL.md (qué incluye cada plan cambia; fuente: claude.com/pricing
       y support.claude.com, artículos de Claude Code por plan y de créditos mensuales de API).
+
+## 1d. Corrida real 2026-11-27 (/tmp/prueba-loop-2: 1/2 tareas, 1.01/1 USD, plan Ultra, paralelo 2)
+
+Confirmado con el SDK de verdad (0.2.189): planificador, implementador y revisor devuelven `structured_output`;
+`dontAsk` deja trabajar; el hook niega `git` en Bash (ambos implementadores lo intentaron); los modelos son válidos.
+Costos: planificador 0.27 · implementador 0.14–0.15 · revisor chico 0.12 · revisor completo > 0.33 (cortado).
+
+- [x] **Bug: el tope de presupuesto también llega como `ProcessError`.** El revisor completo de T01 tenía 0.25 USD,
+      gastó 0.33 y el CLI salió con código 1; el motivo («Budget limit reached») solo fue a stderr. Se tomó como
+      «revisor pidió: ProcessError…». Arreglado en f141b6d (rama `corrida-real-2`): se lee stderr y `Resultado.tope`.
+- [ ] **`max_budget_usd` no es duro:** la sesión pasó su tope ~30 % (0.33 de 0.25) por los subagentes en segundo
+      plano. Con N loops el sobregasto real puede ser mayor que (N−1)×mínimo (A5). ¿Reservar un margen (p. ej.
+      repartir 0.75 × restante) o subir `usd_minimo_sesion`?
+- [ ] **1 USD no alcanza para la "Primera prueba real"** del README: planificador + 2 tareas mínimas ≈ 1.1 USD con
+      revisión completa. Subir el ejemplo a 2 USD o usar `paralelo = 1`.
+- [ ] **Los agentes intentan `git status/diff`** y el hook los niega: no rompe nada pero gasta turnos. Decir en el
+      prompt del implementador que git lo maneja loopeable (el freno sigue en código).
+- [ ] Sin confirmar todavía: que el hook aplique a los subagentes (el revisor completo se cortó antes de verlo) y
+      que `total_cost_usd` incluya a los subagentes (0.334 > 0.25 lo sugiere).
+- [ ] T01 quedó PENDIENTE: `loopeable correr` en /tmp/prueba-loop-2 con más saldo la retoma.
 
 ## 1c. Auditoría de seguridad 2026-11-26
 

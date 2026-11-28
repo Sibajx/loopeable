@@ -12,6 +12,8 @@
     "pyproyecto"                  escribe calc.py y tests/test_calc.py (pasa con pytest) → LISTO
     "pytest-rojo"                 escribe tests/test_rojo.py con una prueba que falla → LISTO
     "grande"                      escribe grande.txt de 100 líneas → LISTO (diff grande para el revisor)
+    "revisor-caro"                escribe revisor-caro.txt → LISTO; su revisión cuesta 0.60 y, si no cabe, el CLI sale
+                                  con ProcessError y el motivo solo en stderr (como en la corrida real del 27-nov)
     "sin-saldo"                   la sesión siempre topa su presupuesto (error "Reached maximum budget")
 - integrador: resuelve conflictos quedándose con las dos versiones, sin marcadores.
 - revisor: aprueba todo salvo "rechaza-una-vez" la primera vez.
@@ -80,6 +82,9 @@ def responder(rol, prompt, cwd, esquema, sesion=None):
         if titulo == "grande":
             (cwd / "grande.txt").write_text("".join(f"línea {i}\n" for i in range(100)))
             return {"datos": {"estado": "LISTO"}, "costo": 0.02}
+        if titulo == "revisor-caro":
+            (cwd / "revisor-caro.txt").write_text("caro\n")
+            return {"datos": {"estado": "LISTO"}, "costo": 0.05}
         if titulo == "sin-saldo":
             return _cortar(float("inf"), sesion) | {"costo": min(0.30, sesion.usd_max)}
         if titulo == "nada":
@@ -94,6 +99,10 @@ def responder(rol, prompt, cwd, esquema, sesion=None):
         return {"datos": {"estado": "LISTO"}, "costo": 0.02}
 
     if rol == "revisor":
+        if titulo == "revisor-caro" and sesion is not None and sesion.usd_max is not None and sesion.usd_max < 0.60:
+            return {"costo": 0.60, "error": "ProcessError: Command failed with exit code 1 (exit code: 1)\n"
+                                            "Error output: Check stderr output for details",
+                    "stderr": f"Budget limit reached ($0.60 of ${sesion.usd_max:.2f}); stopping background agents."}
         if titulo == "rechaza-una-vez" and (titulo, str(cwd)) not in _rechazos:   # una vez por proyecto
             _rechazos.add((titulo, str(cwd)))
             return {"datos": {"aprobado": False, "cambios": ["agrega una prueba"]}, "costo": 0.01}
