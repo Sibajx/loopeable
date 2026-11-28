@@ -81,8 +81,8 @@ Costos: planificador 0.27 · implementador 0.14–0.15 · revisor chico 0.12 · 
 - [x] **`max_budget_usd` no es duro:** la sesión pasó su tope ~30 % (0.33 de 0.25) por los subagentes en segundo
       plano. Con N loops el sobregasto real puede ser mayor que (N−1)×mínimo (A5). ¿Reservar un margen (p. ej.
       repartir 0.75 × restante) o subir `usd_minimo_sesion`? → margen_saldo = 0.75
-- [ ] **1 USD no alcanza para la "Primera prueba real"** del README: planificador + 2 tareas mínimas ≈ 1.1 USD con
-      revisión completa. Subir el ejemplo a 2 USD o usar `paralelo = 1`.
+- [x] **1 USD no alcanza para la "Primera prueba real"** del README: planificador + 2 tareas mínimas ≈ 1.1 USD con
+      revisión completa. Subir el ejemplo a 2 USD o usar `paralelo = 1`. → ejemplo a 2 USD
 - [ ] **Los agentes intentan `git status/diff`** y el hook los niega: no rompe nada pero gasta turnos. Decir en el
       prompt del implementador que git lo maneja loopeable (el freno sigue en código).
 - [ ] Sin confirmar todavía: que el hook aplique a los subagentes (el revisor completo se cortó antes de verlo) y
