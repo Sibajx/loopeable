@@ -85,9 +85,12 @@ class Orquestador:
         if motivo:
             raise Freno(motivo)
         # El saldo se reparte entre los loops en curso: si cada sesión en paralelo recibiera todo el restante,
-        # juntas se pasarían del tope. Piso en el mínimo (freno() ya garantizó que el restante lo cubre).
+        # juntas se pasarían del tope. Solo se reparte margen_saldo (0.75) del restante porque max_budget_usd del
+        # SDK no es duro: los subagentes en segundo plano siguen gastando (una sesión con tope 0.25 gastó 0.33).
+        # Piso en el mínimo (freno() ya garantizó que el restante lo cubre).
         activos = max(1, sum(t["estado"] == "EN_CURSO" for t in self.est.todas()))
-        usd_max = min(self.L["usd_por_sesion"], max(self.minimo_sesion(), self.restante() / activos))
+        usd_max = min(self.L["usd_por_sesion"],
+                      max(self.minimo_sesion(), self.restante() * self.L["margen_saldo"] / activos))
         s = ia.Sesion(
             rol=rol, prompt=prompt, cwd=cwd, modelo=modelo if modelo is not None else self.M.get(rol, ""),
             herramientas=herramientas, editar=editar, esquema=esquema,

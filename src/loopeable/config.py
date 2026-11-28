@@ -21,6 +21,7 @@ DEFECTO: dict = {
         "usd": 20.0,            # tope de gasto de toda la corrida
         "usd_por_sesion": 4.0,  # tope de cada sesión de un agente
         "usd_minimo_sesion": 0.25,  # con menos saldo que esto no arranca ninguna sesión (no alcanzaría)
+        "margen_saldo": 0.75,   # fracción del restante que se reparte entre los loops (el tope del SDK no es duro)
         "horas": 6.0,
         "intentos": 3,          # vueltas de cada loop de tarea
         "tareas": 40,           # tope de tareas (incluye las que crean los loops)
@@ -95,6 +96,8 @@ def cargar(raiz: Path) -> dict:
         raise ValueError(f"{ARCHIVO}: falta `objetivo`.")
     if cfg["cuenta"]["modo"] not in ("plan", "api"):
         raise ValueError(f"{ARCHIVO}: [cuenta] modo debe ser \"plan\" o \"api\".")
+    if not 0 < cfg["limites"]["margen_saldo"] <= 1:
+        raise ValueError(f"{ARCHIVO}: [limites] margen_saldo debe estar en (0, 1].")
     return cfg
 
 
@@ -164,6 +167,7 @@ criterios = []
 usd = 20
 usd_por_sesion = 4
 usd_minimo_sesion = 0.25       # con menos saldo no arranca ninguna sesión
+margen_saldo = 0.75            # fracción del restante que se reparte entre los loops (el tope del SDK no es duro)
 horas = 6
 intentos = 3
 tareas = 40

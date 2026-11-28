@@ -200,6 +200,29 @@ def test_presupuesto_no_se_pasa_del_tope_en_paralelo(tmp_path):
     assert any(t["estado"] == "PENDIENTE" for t in est.todas())            # lo que no alcanzó, espera
 
 
+def test_margen_saldo_reparte_solo_una_fraccion_del_restante(tmp_path):
+    # max_budget_usd del SDK no es duro: solo se reparte margen_saldo (0.75) del restante
+    r = repo(tmp_path, [{"titulo": "nada"}], paralelo=1, limites={"usd": 2})
+    falsa().SESIONES.clear()
+    correr(r)
+    assert config.DEFECTO["limites"]["margen_saldo"] == 0.75
+    assert falsa().SESIONES[0][1].usd_max == pytest.approx(2 * 0.75)      # 1.5, no 2
+
+
+def test_margen_saldo_respeta_el_piso_minimo(tmp_path):
+    # 0.3 × 0.75 = 0.225 < 0.25 → la sesión recibe el mínimo, no menos
+    r = repo(tmp_path, [{"titulo": "nada"}], paralelo=1, limites={"usd": 0.3, "usd_minimo_sesion": 0.25})
+    falsa().SESIONES.clear()
+    correr(r)
+    assert falsa().SESIONES[0][1].usd_max == pytest.approx(0.25)
+
+
+def test_margen_saldo_fuera_de_rango(tmp_path):
+    r = repo(tmp_path, [{"titulo": "nada"}], limites={"margen_saldo": 1.5})
+    with pytest.raises(ValueError):
+        config.cargar(r)
+
+
 def test_freno_cuando_no_alcanza_el_minimo(tmp_path):
     r = repo(tmp_path, [{"titulo": "escribe a.txt uno"}], limites={"usd": 1, "usd_minimo_sesion": 0.25})
     orq = Orquestador(r, config.cargar(r), log=lambda *_: None)

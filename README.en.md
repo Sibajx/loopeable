@@ -27,8 +27,9 @@ ORCHESTRATOR (code, not the model: limits, brakes, git, state)
   `loopeable/<date>`; failures are discarded. `main` is never touched.
 - **Learns.** `LOOPEABLE-APRENDIZAJES.md` keeps one lesson per hard task, read by the next run.
 - **Resumable.** SQLite state in `.loopeable/estado.db`.
-- **Budget-aware.** `[limites] usd_minimo_sesion` (0.25): no session starts with less left than that, and what's
-  left is split across the running loops. Diffs up to `diff_chico_lineas` (40) lines and `diff_chico_archivos` (3)
+- **Budget-aware.** `[limites] usd_minimo_sesion` (0.25): no session starts with less left than that, and only
+  `margen_saldo` (0.75) of what's left is split across the running loops, since the SDK's per-session cap isn't
+  hard (background subagents keep spending). Diffs up to `diff_chico_lineas` (40) lines and `diff_chico_archivos` (3)
   files get a cheap review (implementer's model, no subagents). Every rejected attempt is logged with its reason
   (`loopeable ver T03`, web board).
 
